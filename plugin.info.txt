@@ -1,0 +1,7 @@
+base     headings
+author   Satoshi Sahara
+email    sahara.satoshi@gmail.com
+date     2018-10-21
+name     Heading PreProcesser plugin
+desc     (to be described)
+url      https://www.dokuwiki.org/plugin:headings
