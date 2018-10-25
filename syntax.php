@@ -48,15 +48,29 @@ class syntax_plugin_headings extends DokuWiki_Syntax_Plugin {
 
         // speparate param from headings text
         if (strpos($text, '|') !== false) {
-            list($param, $title) = array_map('trim', explode('|', $text, 2));
+            [$param, $title0] = array_map('trim', explode('|', $text, 2));
         } else {
             $param = '';
-            $title = trim($text);
+            $title0 = trim($text);
         }
 
         // genrate original heading ID
         // $hid0 is used to modify $meta['description']['tableofcontents']
-        $hid0 = sectionID($title, $headings0); // hid0 must be unique in the page
+        $hid0 = sectionID($title0, $headings0); // hid0 must be unique in the page
+
+        // pre-processing the heading text
+        // NOTE: common plugin function render_text()
+        // output text string through the parser, allows DokuWiki markup to be used
+        if ($title0 && $this->getConf('header_formatting')) {
+            $xhtml = $this->render_text($title0);
+            $xhtml = substr($xhtml, 5, -6); // drop p tag and \n
+            $xhtml = preg_replace('#<a\b.*?>(.*?)</a>#', '${1}', $xhtml);
+            $title = htmlspecialchars_decode(strip_tags($xhtml), ENT_QUOTES);
+            $title = str_replace(DOKU_LF, '', $title); // remove any linebreak
+        } else {
+            $xhtml = '';
+            $title = $title0;
+        }
 
         // param processing: user defined hid, shorter than title, independ from title change
         $hid = $param ?: $title;
@@ -65,11 +79,11 @@ class syntax_plugin_headings extends DokuWiki_Syntax_Plugin {
 
         // call render method of this plugin
         $plugin = substr(get_class($this), 14);
-        $data = [$pos, $level, $hid0, $hid, $title];
+        $data = [$pos, $level, $hid0, $title0, $hid, $title, $xhtml];
         $handler->addPluginCall($plugin, $data, $state,$pos,$match);
 
         // call header method of Doku_Handler class
-        $match = $markup . $title . $markup;
+        $match = $markup . $title0 . $markup;
         $handler->header($match, $state, $pos);
 
         return false;
@@ -83,11 +97,11 @@ class syntax_plugin_headings extends DokuWiki_Syntax_Plugin {
         // create headings metadata that compatible with 
         // $meta['current']['description']['tableofcontents']
         if ($format == 'metadata') {
-            [$pos, $level, $hid0, $hid, $title] = $data;
+            [$pos, $level, $hid0, $title0, $hid, $title, $xhtml] = $data;
 
             $renderer->meta['plugin']['headings'][$pos] = [
-                    'hid0' => $hid0,
-                    'hid' => $hid, 'title' => $title,
+                    'hid0' => $hid0, 'title0' => $title0,
+                    'hid' => $hid, 'title' => $title, 'xhtml' => $xhtml,
                     'level' => $level, 'type' => 'ul',
             ];
         }
