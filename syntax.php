@@ -35,6 +35,7 @@ class syntax_plugin_headings extends DokuWiki_Syntax_Plugin {
      * Handle the match
      */
     function handle($match, $state, $pos, Doku_Handler $handler) {
+        global $ID;
 
         static $headings0 = [];
         static $headings = [];
@@ -77,14 +78,14 @@ class syntax_plugin_headings extends DokuWiki_Syntax_Plugin {
         $hid = sectionID($hid, $headings); // hid must be unique in the page
 
 
-        // call render method of this plugin
-        $plugin = substr(get_class($this), 14);
-        $data = [$pos, $level, $hid0, $title0, $hid, $title, $xhtml];
-        $handler->addPluginCall($plugin, $data, $state,$pos,$match);
-
         // call header method of Doku_Handler class
         $match = $markup . $title0 . $markup;
         $handler->header($match, $state, $pos);
+
+        // call render method of this plugin
+        $plugin = substr(get_class($this), 14);
+        $data = [$ID, $pos, $level, $hid0, $title0, $hid, $title, $xhtml];
+        $handler->addPluginCall($plugin, $data, $state,$pos,$match);
 
         return false;
     }
@@ -97,9 +98,10 @@ class syntax_plugin_headings extends DokuWiki_Syntax_Plugin {
         // create headings metadata that compatible with 
         // $meta['current']['description']['tableofcontents']
         if ($format == 'metadata') {
-            [$pos, $level, $hid0, $title0, $hid, $title, $xhtml] = $data;
+            [$page, $pos, $level, $hid0, $title0, $hid, $title, $xhtml] = $data;
 
-            $renderer->meta['plugin']['headings'][$pos] = [
+            $renderer->meta['plugin']['headings'][] = [
+                    'page' => $page, 'pos' => $pos,
                     'hid0' => $hid0, 'title0' => $title0,
                     'hid' => $hid, 'title' => $title, 'xhtml' => $xhtml,
                     'level' => $level, 'type' => 'ul',
