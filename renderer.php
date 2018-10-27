@@ -19,6 +19,33 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
     }
 
     /**
+     * Reset protected properties of class Doku_Renderer_xhtml
+     */
+    function reset() {
+        $this->doc = '';
+        $this->footnotes = array();
+        $this->lastsecid = 0;
+        $this->store = '';
+        $this->_counter = array();
+    }
+
+    /**
+     * Render plain text data - use linebreak2 plugin if available
+     *
+     * @param string $text  the text to display
+     */
+    function cdata($text) {
+
+        static $renderer;
+        isset($renderer) || $renderer = $this->loadHelper('linebreak2') ?? false;
+        if ($renderer) {
+            $this->doc .= $renderer->cdata($text);
+        } else {
+            parent::cdata($text);
+        }
+    }
+
+    /**
      * Render a heading
      *
      * @param string $text  the text to display
