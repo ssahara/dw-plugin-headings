@@ -91,7 +91,7 @@ class syntax_plugin_headings_preprocess extends DokuWiki_Syntax_Plugin {
         if ($format == 'metadata') {
             [$page, $pos, $level, $title0, $hid, $title, $xhtml, $hid] = $data;
 
-            $renderer->meta['plugin']['headings'][] = [
+            $renderer->meta['plugin']['headings']['tableofcontents'][] = [
                     'page' => $page, 'pos' => $pos,
                     'level' => $level, 'title0' => $title0,
                     'title' => $title, 'xhtml' => $xhtml, 'hid' => $hid,
