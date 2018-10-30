@@ -25,13 +25,13 @@ class action_plugin_headings extends DokuWiki_Action_Plugin {
      */
     function register(Doku_Event_Handler $controller) {
         $controller->register_hook(
-            'PARSER_METADATA_RENDER', 'AFTER', $this, '_modifyTableOfContents'
+            'PARSER_METADATA_RENDER', 'AFTER', $this, 'extend_TableOfContents', [], -100
         );
         $controller->register_hook(
-            'TPL_TOC_RENDER', 'BEFORE', $this, 'tpl_toc'
+            'TPL_TOC_RENDER', 'BEFORE', $this, 'tpl_toc', []
         );
         $controller->register_hook(
-            'TPL_CONTENT_DISPLAY', 'BEFORE', $this, '_renderHtmlToc'
+            'TPL_CONTENT_DISPLAY', 'BEFORE', $this, 'show_HtmlToc', []
         );
     }
 
@@ -41,7 +41,7 @@ class action_plugin_headings extends DokuWiki_Action_Plugin {
      *
      * Extends TableOfContents database that holds All headings
      */
-    function _modifyTableOfContents(Doku_Event $event) {
+    function extend_TableOfContents(Doku_Event $event) {
         global $ID;
 
         $toc =& $event->data['current']['description']['tableofcontents'];
@@ -111,7 +111,9 @@ class action_plugin_headings extends DokuWiki_Action_Plugin {
 
     /**
      * TPL_TOC_RENDER event handler
+     *
      * Adjust global TOC array according to a given config settings
+     * This method may called from TPL_CONTENT_DISPLAY event handler
      *
      * @see also inc/template.php function tpl_toc($return = false)
      */
@@ -168,13 +170,14 @@ class action_plugin_headings extends DokuWiki_Action_Plugin {
 
     /**
      * TPL_CONTENT_DISPLAY
+     *
      * insert XHTML of auto-toc at tocPosition where
      *  0: top of the content (default)
      *  1: after the first level 1 heading
      *  2: after the first level 2 heading
      *  6: after the first heading
      */
-    function _renderHtmlToc(Doku_Event $event) {
+    function show_HtmlToc(Doku_Event $event) {
         global $ID, $ACT, $TOC;
         $debug = strtoupper(get_class($this)).' '.$event->name;  //デバッグ用
 
