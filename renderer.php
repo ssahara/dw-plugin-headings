@@ -116,7 +116,7 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
         // write anchor for empty or hidden/unvisible headings
         if (empty($title)) {
             $this->doc .= DOKU_LF.'<a id="'.$hid.'"></a>'.DOKU_LF;
-            return;
+            goto toc_here_check;
         }
 
         //only add items within configured levels
@@ -152,14 +152,15 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
         $this->doc .= $xhtml;
         $this->doc .= '</h'.$level.'>'.DOKU_LF;
 
-         // 直後にTOCを表示する見だしの場合
-        $toc_hid = $INFO['meta']['toc']['hid'] ?? '#';
-        if ($toc_hid == $hid0) {
-            $this->doc .= '<!-- TOC_HERE -->'.DOKU_LF;
+
+        // append TOC_HERE placeholder if necessary
+        toc_here_check: {
+            // 直後にTOCを表示する見だしの場合
+            $toc_hid = $INFO['meta']['toc']['hid'] ?? '#';
+            if ($toc_hid == $hid0) {
+                $this->doc .= '<!-- TOC_HERE -->'.DOKU_LF;
+            }
         }
-
-
     }
 
 }
-
