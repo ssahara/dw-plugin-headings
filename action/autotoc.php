@@ -8,7 +8,7 @@
 
 if(!defined('DOKU_INC')) die();
 
-class action_plugin_headings extends DokuWiki_Action_Plugin {
+class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
 
     // keep toc config parameters
     private $tocminheads, $toptoclevel, $maxtoclevel;
@@ -25,7 +25,7 @@ class action_plugin_headings extends DokuWiki_Action_Plugin {
      */
     function register(Doku_Event_Handler $controller) {
         $controller->register_hook(
-            'PARSER_METADATA_RENDER', 'AFTER', $this, 'extend_TableOfContents', [], -100
+            'PARSER_METADATA_RENDER', 'AFTER', $this, 'find_TocPosition', []
         );
         $controller->register_hook(
             'TPL_TOC_RENDER', 'BEFORE', $this, 'tpl_toc', []
@@ -39,43 +39,18 @@ class action_plugin_headings extends DokuWiki_Action_Plugin {
     /**
      * PARSER_METADATA_RENDER event handler
      *
-     * Extends TableOfContents database that holds All headings
+     * 直後にTOCを表示する見だしを探す（空見だしも対象）
      */
-    function extend_TableOfContents(Doku_Event $event) {
-        global $ID;
+    function find_TocPosition(Doku_Event $event) {
+        global $ID, $conf;
 
         $toc =& $event->data['current']['description']['tableofcontents'];
         if (!isset($toc)) return;
 
-        $headings = $event->data['current']['plugin']['headings'];
-        if (!isset($headings)) return;
-
-        // handler で生成した headings を tableofcontents 互換の toc データベースに変換する
-        $headers0 = []; // memory once used hid (title0)
-        $headers1 = []; // memory once used hid (new hid)
-
-        foreach ($headings as &$item) {
-            // $item = [
-            //          'page' => $page, 'pos' => $pos,
-            //          'level' => $level, 'title0' => $title0,
-            //          'title' => $title, 'xhtml' => $xhtml, 'hid' => $hid,
-            //         ];
-            // $item を直接更新する
-            $item['hid']  = sectionID($item['hid'], $headers1);
-            $item['hid0'] = sectionID($item['title0'], $headers0);
-            $item['type'] = 'ul';
-        }
-        unset($item);
-
-        $toc = $headings; // overwrite tableofcontents
-        unset($event->data['current']['plugin']['headings']); // remove from metadata
-
-
-        // 直後にTOCを表示する見だしを探す（空見だしも対象）
         $notoc = !$event->data['current']['internal']['toc'];
 
         if ( $notoc || (empty($toc))
-            || ($this->tocminheads == 0) || (count($toc) < $this->tocminheads)
+            || ($conf['tocminheads'] == 0) || (count($toc) < $conf['tocminheads'])
         ) {
             // ~~NOTOC~~指定ある、あるいは 見だし数が0、
             // または、TOC見出し表示数下限値 の設定を満足しない場合
@@ -105,8 +80,6 @@ class action_plugin_headings extends DokuWiki_Action_Plugin {
         } else {
             unset($event->data['current']['toc']['hid']);
         }
-        return;
-
     }
 
     /**
