@@ -37,9 +37,6 @@ class syntax_plugin_headings extends DokuWiki_Syntax_Plugin {
     function handle($match, $state, $pos, Doku_Handler $handler) {
         global $ID;
 
-        static $headings0 = [];
-        static $headings = [];
-
         // get level of the heading
         $text = trim($match);
         $level = 7 - min(strspn($text, '='), 6);
@@ -54,10 +51,6 @@ class syntax_plugin_headings extends DokuWiki_Syntax_Plugin {
             $param = '';
             $title0 = trim($text);
         }
-
-        // genrate original heading ID
-        // $hid0 is used to modify $meta['description']['tableofcontents']
-        $hid0 = sectionID($title0, $headings0); // hid0 must be unique in the page
 
         // pre-processing the heading text
         // NOTE: common plugin function render_text()
@@ -75,8 +68,6 @@ class syntax_plugin_headings extends DokuWiki_Syntax_Plugin {
 
         // param processing: user defined hid, shorter than title, independ from title change
         $hid = $param ?: $title;
-        $hid = sectionID($hid, $headings); // hid must be unique in the page
-
 
         // call header method of Doku_Handler class
         $match = $markup . $title0 . $markup;
@@ -84,7 +75,7 @@ class syntax_plugin_headings extends DokuWiki_Syntax_Plugin {
 
         // call render method of this plugin
         $plugin = substr(get_class($this), 14);
-        $data = [$ID, $pos, $level, $hid0, $title0, $hid, $title, $xhtml];
+        $data = [$ID, $pos, $level, $title0, $hid, $title, $xhtml, $hid];
         $handler->addPluginCall($plugin, $data, $state,$pos,$match);
 
         return false;
@@ -98,13 +89,12 @@ class syntax_plugin_headings extends DokuWiki_Syntax_Plugin {
         // create headings metadata that compatible with 
         // $meta['current']['description']['tableofcontents']
         if ($format == 'metadata') {
-            [$page, $pos, $level, $hid0, $title0, $hid, $title, $xhtml] = $data;
+            [$page, $pos, $level, $title0, $hid, $title, $xhtml, $hid] = $data;
 
             $renderer->meta['plugin']['headings'][] = [
                     'page' => $page, 'pos' => $pos,
-                    'hid0' => $hid0, 'title0' => $title0,
-                    'hid' => $hid, 'title' => $title, 'xhtml' => $xhtml,
-                    'level' => $level, 'type' => 'ul',
+                    'level' => $level, 'title0' => $title0,
+                    'title' => $title, 'xhtml' => $xhtml, 'hid' => $hid,
             ];
         }
     }

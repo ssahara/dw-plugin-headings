@@ -18,6 +18,9 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
         return ($format == 'xhtml');
     }
 
+
+    protected $headings0 = array(); // memory once used hid
+
     /**
      * Reset protected properties of class Doku_Renderer_xhtml
      */
@@ -27,6 +30,9 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
         $this->lastsecid = 0;
         $this->store = '';
         $this->_counter = array();
+
+        // properties defined in class renderer_plugin_headings
+        $this->headings0 = array();
     }
 
     /**
@@ -54,11 +60,11 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
      */
     function header($text, $level, $pos) {
         global $ACT, $INFO, $ID, $conf;
+        $debug = strtoupper(get_class($this));  //デバッグ用
 
         /*
          * EXPERIMENTAL: Render a formatted heading
          */
-        static $headings0 = [];
         static $map;
 
         if (!isset($map)) {
@@ -68,14 +74,13 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
 
         // resolove hid0
         $title0 = $text; // may contains wiki formatting markups
-        $hid0 = sectionID($title0, $headings0); // hid0 must be unique in the page
+        $hid0 = sectionID($title0, $this->headings0); // hid0 must be unique in the page
 
 
         if ($ACT != 'preview') {
             if (!isset($map[$hid0])) {
-                $s = ' WARNING '.strtoupper(get_class($this));
-                $s.= ' hid0='.$hid0.' NOT found in map title='.$title.' in '.$ID;
-                error_log($s);
+                error_log($debug.' hid0='.$hid0.' NOT found in map title='.$title.' in '.$ID);
+
             }
 
             // retrieve headings meatadata
@@ -146,6 +151,14 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
         $this->doc .= ' id="'.$hid.'">';
         $this->doc .= $xhtml;
         $this->doc .= '</h'.$level.'>'.DOKU_LF;
+
+         // 直後にTOCを表示する見だしの場合
+        $toc_hid = $INFO['meta']['toc']['hid'] ?? '#';
+        if ($toc_hid == $hid0) {
+            $this->doc .= '<!-- TOC_HERE -->'.DOKU_LF;
+        }
+
+
     }
 
 }
