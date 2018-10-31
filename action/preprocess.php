@@ -31,7 +31,9 @@ class action_plugin_headings_preprocess extends DokuWiki_Action_Plugin {
         $toc =& $event->data['current']['description']['tableofcontents'];
         if (!isset($toc)) return;
 
-        $headings = $event->data['current']['plugin']['headings']['tableofcontents'];
+        // retrieve from metadata
+        $metadata =& $event->data['current']['plugin'][$this->getPluginName()];
+        $headings = $metadata['tableofcontents'];
         if (!isset($headings)) return;
 
         // handler で生成した headings を tableofcontents 互換の toc データベースに変換する
@@ -54,7 +56,7 @@ class action_plugin_headings_preprocess extends DokuWiki_Action_Plugin {
         $toc = $headings; // overwrite tableofcontents
 
         // remove plugin's metadata
-        unset($event->data['current']['plugin']['headings']['tableofcontents']);
+        unset($metadata['tableofcontents']);
     }
 
 }

@@ -86,12 +86,14 @@ class syntax_plugin_headings_preprocess extends DokuWiki_Syntax_Plugin {
      */
     function render($format, Doku_Renderer $renderer, $data) {
 
-        // create headings metadata that compatible with 
-        // $meta['current']['description']['tableofcontents']
+        // create headings metadata that is compatible with
+        // $renderer->meta['description']['tableofcontents']
         if ($format == 'metadata') {
             [$page, $pos, $level, $title0, $hid, $title, $xhtml, $hid] = $data;
 
-            $renderer->meta['plugin']['headings']['tableofcontents'][] = [
+            // store into matadata storage
+            $metadata =& $renderer->meta['plugin'][$this->getPluginName()];
+            $metadata['tableofcontents'][] = [
                     'page' => $page, 'pos' => $pos,
                     'level' => $level, 'title0' => $title0,
                     'title' => $title, 'xhtml' => $xhtml, 'hid' => $hid,

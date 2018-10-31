@@ -52,7 +52,7 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
 
         switch ($m[1]) {
             case 'NOTOC':
-             // $handler->_addCall('notoc', array(), $pos);
+                $handler->_addCall('notoc', array(), $pos);
                 $tocPosition = 9;
                 break;
             case 'CLOSETOC':
@@ -102,12 +102,15 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
                     return false;
                 }
 
-                // store matadata to overwrite $conf in PARSER_CACHE_USE event handler
-                isset($tocPosition) && $renderer->meta['toc']['position'] = $tocPosition;
-                isset($tocState)    && $renderer->meta['toc']['state'] = $tocState;
-                isset($topLv)       && $renderer->meta['toc']['toptoclevel'] = $topLv;
-                isset($maxLv)       && $renderer->meta['toc']['maxtoclevel'] = $maxLv;
-                isset($tocClass)    && $renderer->meta['toc']['class'] = $tocClass;
+                // store into matadata storage
+                $metadata =& $renderer->meta['plugin'][$this->getPluginName()];
+                $metadata['toc'] = [
+                    'position'    => $tocPosition,
+                    'state'       => $tocState,
+                    'toptoclevel' => $topLv,
+                    'maxtoclevel' => $maxLv,
+                    'class'       => $tocClass,
+                ];
 
                 if ($tocPosition === -1) {
                     $call_ignore[$format][$ID] = true;
@@ -117,7 +120,7 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
 
             case 'xhtml':
                 // render PLACEHOLDER, which will be replaced later
-                // through action event handler handlePostProcess()
+                // through action TPL_CONTENT_DISPLAY event handler
                 if ($tocPosition === -1) {
                     $renderer->doc .= '<!-- TOC_HERE -->'.DOKU_LF;
                     $call_ignore[$format][$ID] = true;

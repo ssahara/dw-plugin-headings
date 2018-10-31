@@ -49,8 +49,11 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
         // TOC control should be changeable in only normal page
         if (( empty($ACT) || ($ACT=='show') || ($ACT=='preview')) == false) return;
 
-        if (isset($INFO['meta']['toc']['state'])) {
-            $JSINFO['toc']['initial_state'] = $INFO['meta']['toc']['state'];
+        // retrieve from metadata
+        $metadata =& $INFO['meta']['plugin'][$this->getPluginName()];
+        $tocState = $metadata['toc']['state'];
+        if (isset($tocState)) {
+            $JSINFO['toc']['initial_state'] = $tocState;
         }
     }
 
@@ -77,6 +80,9 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
             return;
         }
 
+        // 直後にTOCを表示する見だしの識別ID hid0を探す（空見だしも対象）
+        // xhtml_rendererの headerメソッドは、title0 を引数とするため、
+        // アクセスには title0ベースの 識別ID hid0 が有用
         $toc_hid0 = 0;
         if ($this->getConf('tocPosition') == 6) {
             // after the First any level heading
@@ -91,14 +97,10 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
                 }
             }
         }
-        if ($toc_hid0) {
-            // TOC 表示位置の見だしが見つかった場合、メタデータとして記録しておく
-            // xhtml_rendererの headerメソッドは、title0 を引数とするため、
-            // title0ベースの 識別ID hid0 を記録する。
-            $event->data['current']['toc']['hid'] = $toc_hid0;
-        } else {
-            unset($event->data['current']['toc']['hid']);
-        }
+
+        // store toc_hid0 into matadata storage
+        $metadata =& $event->data['current']['plugin'][$this->getPluginName()];
+        $metadata['toc']['hid'] = $toc_hid0 ?: null;
     }
 
     /**
@@ -124,12 +126,12 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
         }
 
         $toc = $INFO['meta']['description']['tableofcontents'] ?? [];
-        //error_log(' '.$event->name.' info toc='.var_export($INFO['meta']['description']['tableofcontents'],1));
-        $notoc = !( $INFO['internal']['toc'] ?? true); // is true if toc should not be displayed
+        $notoc = !($INFO['internal']['toc'] ?? true); // true if toc should not be displayed
 
-        $tocminheads = $INFO['meta']['toc']['tocminheads'] ?? $conf['tocminheads'];
-        $toptoclevel = $INFO['meta']['toc']['toptoclevel'] ?? $conf['toptoclevel'];
-        $maxtoclevel = $INFO['meta']['toc']['maxtoclevel'] ?? $conf['maxtoclevel'];
+        $metadata =& $INFO['meta']['plugin'][$this->getPluginName()];
+        $tocminheads = $metadata['toc']['tocminheads'] ?? $conf['tocminheads'];
+        $toptoclevel = $metadata['toc']['toptoclevel'] ?? $conf['toptoclevel'];
+        $maxtoclevel = $metadata['toc']['maxtoclevel'] ?? $conf['maxtoclevel'];
 
         foreach ($toc as $k => $item) {
             if (empty($item['title'])
