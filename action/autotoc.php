@@ -24,6 +24,11 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
      * Register event handlers
      */
     function register(Doku_Event_Handler $controller) {
+
+        $controller->register_hook(
+            'DOKUWIKI_STARTED', 'BEFORE', $this, '_exportToJSINFO', []
+        );
+
         $controller->register_hook(
             'PARSER_METADATA_RENDER', 'AFTER', $this, 'find_TocPosition', []
         );
@@ -33,6 +38,20 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
         $controller->register_hook(
             'TPL_CONTENT_DISPLAY', 'BEFORE', $this, 'show_HtmlToc', []
         );
+    }
+
+
+    /**
+     * Exports configuration settings to $JSINFO
+     */
+    function _exportToJSINFO(Doku_Event $event) {
+        global $JSINFO, $INFO, $ACT;
+        // TOC control should be changeable in only normal page
+        if (( empty($ACT) || ($ACT=='show') || ($ACT=='preview')) == false) return;
+
+        if (isset($INFO['meta']['toc']['state'])) {
+            $JSINFO['toc']['initial_state'] = $INFO['meta']['toc']['state'];
+        }
     }
 
 
@@ -108,9 +127,9 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
         //error_log(' '.$event->name.' info toc='.var_export($INFO['meta']['description']['tableofcontents'],1));
         $notoc = !( $INFO['internal']['toc'] ?? true); // is true if toc should not be displayed
 
-        $tocminheads = $this->tocminheads ?? $conf['tocminheads'];
-        $toptoclevel = $this->toptoclevel ?? $conf['toptoclevel'];
-        $maxtoclevel = $this->maxtoclevel ?? $conf['maxtoclevel'];
+        $tocminheads = $INFO['meta']['toc']['tocminheads'] ?? $conf['tocminheads'];
+        $toptoclevel = $INFO['meta']['toc']['toptoclevel'] ?? $conf['toptoclevel'];
+        $maxtoclevel = $INFO['meta']['toc']['maxtoclevel'] ?? $conf['maxtoclevel'];
 
         foreach ($toc as $k => $item) {
             if (empty($item['title'])
@@ -173,7 +192,7 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
         $content = str_replace($search, $replace, $content, $count);
 
         if ($count > 1) {
-            error_log(' '.$s.' '.$event->name.'  wrong? count='.$count.' > 2 in page '.$ID);
+            error_log(' '.$s.' '.$event->name.'  wrong? count='.$count.' > 1 in page '.$ID);
             return; // something wrong?, toc must appear once in the page
         }
         $event->data = $content;
