@@ -80,18 +80,21 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
             return;
         }
 
+        $metadata =& $event->data['current']['plugin'][$this->getPluginName()];
+        $tocDisplay = $metadata['toc']['display'] ?? $this->getConf('tocDisplay');
+
         // 直後にTOCを表示する見だしの識別ID hid0を探す（空見だしも対象）
         // xhtml_rendererの headerメソッドは、title0 を引数とするため、
         // アクセスには title0ベースの 識別ID hid0 が有用
         $toc_hid0 = 0;
-        if ($this->getConf('tocDisplay') == 0) {
+        if ($tocDisplay == '0') {
             // after the First any level heading
             $toc_hid0 = $toc[0]['hid0'];
 
-        } elseif (in_array($this->getConf('tocDisplay'), [1,2])) {
+        } elseif (in_array($tocDisplay, ['1','2'])) {
             // after the First Level 1 or Level 2 heading
             foreach ($toc as $k => $item) {
-                if ($item['level'] == $this->getConf('tocDisplay')) {
+                if ($item['level'] == $tocDisplay) {
                     $toc_hid0 = $item['hid0'];
                     break;
                 }
@@ -99,7 +102,6 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
         }
 
         // store toc_hid0 into matadata storage
-        $metadata =& $event->data['current']['plugin'][$this->getPluginName()];
         $metadata['toc']['hid'] = $toc_hid0 ?: null;
     }
 
@@ -126,8 +128,15 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
             return;
         }
 
+        // retrieve toc parameters from metadata storage
+        $metadata =& $INFO['meta']['plugin'][$this->getPluginName()];
+        $tocDisplay  = $metadata['toc']['display'] ?? $this->getConf('tocDisplay');
+        $toptoclevel = $metadata['toc']['toptoclevel'] ?? $conf['toptoclevel'];
+        $maxtoclevel = $metadata['toc']['maxtoclevel'] ?? $conf['maxtoclevel'];
+        $tocminheads = $conf['tocminheads'];
+
         if ($event->name == 'TPL_TOC_RENDER') {
-            if (in_array($this->getConf('tocDisplay'), [0,1,2])) {
+            if ($tocDisplay != 'default') {
                 // stop prepending TOC box to the default position (top right corner)
                 // of the page by empty toc
                 // note: this method is called again to build html toc
@@ -137,12 +146,6 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
                 return;
             }
         }
-
-        // retrieve toc parameters from metadata storage
-        $metadata =& $INFO['meta']['plugin'][$this->getPluginName()];
-        $tocminheads = $metadata['toc']['tocminheads'] ?? $conf['tocminheads'];
-        $toptoclevel = $metadata['toc']['toptoclevel'] ?? $conf['toptoclevel'];
-        $maxtoclevel = $metadata['toc']['maxtoclevel'] ?? $conf['maxtoclevel'];
 
         $toc = $INFO['meta']['description']['tableofcontents'] ?? [];
         $notoc = !($INFO['meta']['internal']['toc']); // true if toc should not be displayed
