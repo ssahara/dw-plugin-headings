@@ -122,16 +122,30 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
                 $TOC = $toc; // avoid later rebuild
             }
             // error_log(' '.$event->name.' admin toc='.var_export($toc,1));
-            return $toc;
+            $event->data = $toc;
+            return;
         }
 
-        $toc = $INFO['meta']['description']['tableofcontents'] ?? [];
-        $notoc = !($INFO['internal']['toc'] ?? true); // true if toc should not be displayed
+        if ($event->name == 'TPL_TOC_RENDER') {
+            if (in_array($this->getConf('tocPosition'), [1,2,6])) {
+                // stop prepending TOC box to the default position (top right corner)
+                // of the page by empty toc
+                // note: this method is called again to build html toc
+                //       from TPL_CONTENT_DISPLAY event handler
+                $toc = [];
+                $event->data = $toc;
+                return;
+            }
+        }
 
+        // retrieve toc parameters from metadata storage
         $metadata =& $INFO['meta']['plugin'][$this->getPluginName()];
         $tocminheads = $metadata['toc']['tocminheads'] ?? $conf['tocminheads'];
         $toptoclevel = $metadata['toc']['toptoclevel'] ?? $conf['toptoclevel'];
         $maxtoclevel = $metadata['toc']['maxtoclevel'] ?? $conf['maxtoclevel'];
+
+        $toc = $INFO['meta']['description']['tableofcontents'] ?? [];
+        $notoc = !($INFO['meta']['internal']['toc']); // true if toc should not be displayed
 
         foreach ($toc as $k => $item) {
             if (empty($item['title'])
@@ -142,21 +156,14 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
             }
             $item['level'] = $item['level'] - $toptoclevel +1;
         }
-        if ( $notoc || ($tocminheads == 0)
-            || (count($toc) < $tocminheads)
-        ) {
+        if ( $notoc || ($tocminheads == 0) || (count($toc) < $tocminheads) ) {
             $toc = [];
         }
 
         if ($event->name == 'TPL_TOC_RENDER') {
-            if (in_array($this->getConf('tocPosition'), [1,2,6])) {
-                $toc = [];
-            }
             $event->data = $toc;
-            //error_log(' '.$event->name.' toc='.var_export($toc,1));
-        } elseif ($event->name == 'TPL_CONTENT_DISPLAY') {
-            $html = html_TOC($toc);
-            return $html;
+        } else if ($event->name == 'TPL_CONTENT_DISPLAY') {
+            return html_TOC($toc);
         } else {
             return $toc;
         }
