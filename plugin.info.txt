@@ -1,7 +1,7 @@
 base     headings
 author   Satoshi Sahara
 email    sahara.satoshi@gmail.com
-date     2018-10-30
+date     2018-11-01
 name     Heading PreProcesser plugin
-desc     (to be described)
+desc     Alternative xhtml renderer that enables persistent heading id (hid) and title formatting.
 url      https://www.dokuwiki.org/plugin:headings
