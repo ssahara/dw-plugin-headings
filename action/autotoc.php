@@ -84,14 +84,14 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
         // xhtml_rendererの headerメソッドは、title0 を引数とするため、
         // アクセスには title0ベースの 識別ID hid0 が有用
         $toc_hid0 = 0;
-        if ($this->getConf('tocPosition') == 6) {
+        if ($this->getConf('tocDisplay') == 0) {
             // after the First any level heading
             $toc_hid0 = $toc[0]['hid0'];
 
-        } elseif (in_array($this->getConf('tocPosition'), [1,2])) {
+        } elseif (in_array($this->getConf('tocDisplay'), [1,2])) {
             // after the First Level 1 or Level 2 heading
             foreach ($toc as $k => $item) {
-                if ($item['level'] == $this->getConf('tocPosition')) {
+                if ($item['level'] == $this->getConf('tocDisplay')) {
                     $toc_hid0 = $item['hid0'];
                     break;
                 }
@@ -127,7 +127,7 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
         }
 
         if ($event->name == 'TPL_TOC_RENDER') {
-            if (in_array($this->getConf('tocPosition'), [1,2,6])) {
+            if (in_array($this->getConf('tocDisplay'), [0,1,2])) {
                 // stop prepending TOC box to the default position (top right corner)
                 // of the page by empty toc
                 // note: this method is called again to build html toc
@@ -173,10 +173,10 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
      * TPL_CONTENT_DISPLAY
      *
      * insert XHTML of auto-toc at tocPosition where
-     *  0: top of the content (default)
+     *  'default': top of the content
+     *  0: after the first heading
      *  1: after the first level 1 heading
      *  2: after the first level 2 heading
-     *  6: after the first heading
      */
     function show_HtmlToc(Doku_Event $event) {
         global $ID, $ACT, $TOC;

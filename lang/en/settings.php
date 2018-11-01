@@ -8,3 +8,12 @@
 
 $lang['header_formatting'] = 'EXPERIMENTAL: Allow formatting sytnax in header text'; //experimetal
 
+// Extends DokuWiki original Table of Contents (TOC) feature
+$lang['tocDisplay'] = 'Display the auto-TOC box';
+  $lang['tocDisplay_o_none']     = 'restrict Auto-TOC display';
+  $lang['tocDisplay_o_defauult'] = 'default (top right corner)';
+  $lang['tocDisplay_o_0'] = 'after the First heading';
+  $lang['tocDisplay_o_1'] = 'after the First Level 1 heading';
+  $lang['tocDisplay_o_2'] = 'after the First Level 2 heading';
+
+

@@ -6,3 +6,6 @@
  */
 
 $meta['header_formatting'] = array('onoff'); //experimetal
+
+// Extends DokuWiki original Table of Contents (TOC) feature
+$meta['tocDisplay'] = array('multichoice','_choices' => ['none','default',0,1,2]);

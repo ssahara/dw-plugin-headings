@@ -53,25 +53,25 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
         switch ($m[1]) {
             case 'NOTOC':
                 $handler->_addCall('notoc', array(), $pos);
-                $tocPosition = 9;
+                $tocDisplay = null; // or 'none'
                 break;
             case 'CLOSETOC':
-                $tocPosition = null; // $this->getConf('tocPosition');
+                $tocDisplay = null; // $this->getConf('tocDisplay');
                 $tocState = -1;
                 break;
             case 'TOC':
-                $tocPosition = null; // $this->getConf('tocPosition');
+                $tocDisplay = null; // $this->getConf('tocDisplay');
                 break;
             case 'TOC_HERE':
-                $tocPosition = -1;
+                $tocDisplay = -1;
                 break;
             case 'TOC_HERE_CLOSED':
-                $tocPosition = -1;
+                $tocDisplay = -1;
                 $tocState = -1;
                 break;
         } // end of switch
 
-        return $data = [$ID, $tocPosition, $tocState, $topLv, $maxLv, $tocClass];
+        return $data = [$ID, $tocDisplay, $tocState, $topLv, $maxLv, $tocClass];
     }
 
     /**
@@ -82,7 +82,7 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
         static $call_counter = [];  // counts macro used in the page
         static $call_ignore  = [];  // flag to be set when decisive macro has resolved
 
-        list($id, $tocPosition, $tocState, $topLv, $maxLv, $tocClass) = $data;
+        list($id, $tocDisplay, $tocState, $topLv, $maxLv, $tocClass) = $data;
 
         // skip calls that belong to different page (eg. included pages)
         //if ($id != $ID) return false;
@@ -95,7 +95,7 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
         switch ($format) {
             case 'metadata':
                 // skip macros appeared more than once in a page, except ~~TOC_HERE~~
-                if ($tocPosition === -1) {
+                if ($tocDisplay === -1) {
                     unset($call_counter[$ID]);
                 }
                 if ($call_counter[$ID]++ > 0) {
@@ -105,14 +105,14 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
                 // store into matadata storage
                 $metadata =& $renderer->meta['plugin'][$this->getPluginName()];
                 $metadata['toc'] = [
-                    'position'    => $tocPosition,
+                    'display'     => $tocDisplay,
                     'state'       => $tocState,
                     'toptoclevel' => $topLv,
                     'maxtoclevel' => $maxLv,
                     'class'       => $tocClass,
                 ];
 
-                if ($tocPosition === -1) {
+                if ($tocDisplay === -1) {
                     $call_ignore[$format][$ID] = true;
                 }
 
@@ -121,7 +121,7 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
             case 'xhtml':
                 // render PLACEHOLDER, which will be replaced later
                 // through action TPL_CONTENT_DISPLAY event handler
-                if ($tocPosition === -1) {
+                if ($tocDisplay === -1) {
                     $renderer->doc .= '<!-- TOC_HERE -->'.DOKU_LF;
                     $call_ignore[$format][$ID] = true;
                     return true;
