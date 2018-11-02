@@ -28,6 +28,9 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
         $controller->register_hook(
             'DOKUWIKI_STARTED', 'BEFORE', $this, '_exportToJSINFO', []
         );
+        $controller->register_hook(
+            'TPL_METAHEADER_OUTPUT', 'BEFORE', $this, '_hookjs', []
+        );
 
         $controller->register_hook(
             'PARSER_METADATA_RENDER', 'AFTER', $this, 'find_TocPosition', []
@@ -56,6 +59,20 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
             $JSINFO['toc']['initial_state'] = $tocState;
         }
     }
+
+    /**
+     * Add javascript information to script meta headers
+     */
+    function _hookjs(Doku_Event $event) {
+        $plugin_url = DOKU_REL.'lib/plugins/'.$this->getPluginName();
+        $event->data['script'][] = [
+            'type' => 'text/javascript',
+            'charset' => 'utf-8',
+            '_data' => '',
+            'src' => $plugin_url.'/js/toc_status.js',
+        ];
+    }
+
 
 
     /**
