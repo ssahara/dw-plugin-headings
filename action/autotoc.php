@@ -183,7 +183,7 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
         if ($event->name == 'TPL_TOC_RENDER') {
             $event->data = $toc;
         } else if ($event->name == 'TPL_CONTENT_DISPLAY') {
-            return html_TOC($toc);
+            return $this->html_TOC($toc, $metadata['toc']);
         } else {
             return $toc;
         }
@@ -192,31 +192,42 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
     /**
      * TPL_CONTENT_DISPLAY
      *
-     * insert XHTML of auto-toc at tocPosition where
-     *  'default': top of the content
-     *  0: after the first heading
-     *  1: after the first level 1 heading
-     *  2: after the first level 2 heading
+     * Insert XHTML of auto-toc at dedicated place
+     *     'default': top of the content
+     * The placeholder (<!-- TOC_HERE|INLINETOC_HERE -->) has been rendered
+     * according to "tocDisplay" config by xhtml_renderer header method where:
+     *     0: after the first heading
+     *     1: after the first level 1 heading
+     *     2: after the first level 2 heading
+     * or, elsewhere in the content by plugin's render method.
      */
     function show_HtmlToc(Doku_Event $event) {
-        global $ID, $ACT, $TOC;
+        global $INFO, $ID, $ACT;
         $debug = strtoupper(get_class($this)).' '.$event->name;  //デバッグ用
 
         if (!in_array($ACT, ['show', 'preview'])) {
             return;
         }
 
-        if (strpos($event->data, '<!-- TOC_HERE -->') === false) {
-            error_log($debug.' ACT='.$ACT.' TOC_HERE not found in page '.$ID);
+        // retrieve toc parameters from metadata storage
+        $metadata =& $INFO['meta']['plugin'][$this->getPluginName()];
+        $tocProps = $metadata['toc'];
+
+        $tocDisplay = $tocProps['display'] ?? 'toc'; // 未設定時は標準TOC
+        if($tocDisplay == 'none') return;
+
+        $search = '<!-- '.strtoupper($tocDisplay).'_HERE -->';
+
+        if (strpos($event->data, $search) === false) {
+            error_log($debug.' ACT='.$ACT.' placeholder '.$search.' not found in page '.$INFO['id']);
             return;
         }
 
         // prepare html of table of content
         $html_toc = $this->tpl_toc($event);
 
-        // replace PLACEHOLDER with html_toc
+        // replace PLACEHOLDER with html of table of content
         $content = $event->data;
-        $search  = '<!-- TOC_HERE -->';
         $replace = $html_toc;
         $content = str_replace($search, $replace, $content, $count);
 
@@ -225,6 +236,62 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
             return; // something wrong?, toc must appear once in the page
         }
         $event->data = $content;
+    }
+
+
+    /* -----------------------------------------------------------------------*/
+
+    /**
+     * Return the TOC or INLINETOC rendered to XHTML
+     */
+    private function html_TOC(array $toc, array $tocProps=[]) {
+
+        if ($tocProps == []) {
+            // use DW original functions defined inc/html.php file.
+            return html_TOC($toc);
+        }
+        if(!count($toc)) return '';
+
+            /*
+                    'display'     => $tocDisplay, // TOC box 表示位置 PLACEHOLDER名
+                    'state'       => $tocState,   // TOC box 開閉状態 -1:close
+                    'toptoclevel' => $topLv,      // TOC 見だし範囲の上位レベル
+                    'maxtoclevel' => $maxLv,      // TOC 見だし範囲の下位レベル
+                    'variant'     => $tocVariant, // TOC box 基本デザイン TOC or INLINETOC
+                    'class'       => $tocClass,   // TOC box 微調整用CSSクラス名
+            */
+
+            global $lang;
+
+            // toc properties
+            $tocTitle   = $tocProps['title'] ?? $lang['toc'];
+            $tocDisplay = $tocProps['display'] ?? 'toc'; // 未設定時は標準TOC
+            switch ($tocDisplay) {
+                case 'none':
+                    return '';
+                case 'toc':
+                    $tocVariant = 'dw__toc';
+                    break;
+                case 'inlinetoc':
+                    $tocVariant = 'dw__inlinetoc';
+                    $tocVariant = 'toc_inline';
+                    break;
+                default:
+                    return '';
+            } // end of switch
+            $tocClass = implode(' ', [$tocVariant, $tocProps['class']]);
+
+            $attr = ['id' => 'dw__toc', 'class' => $tocClass];
+
+            $out  = '<!-- TOC START -->'.DOKU_LF;
+         // $out .= '<div id="dw__toc" class="dw__toc">'.DOKU_LF;
+            $out .= '<div '.buildAttributes($attr).'>'.DOKU_LF;
+            $out .= '<h3 class="toggle">'.hsc($tocTitle).'</h3>'.DOKU_LF;
+            $out .= '<div>'.DOKU_LF;
+            $out .= html_buildlist($toc,'toc','html_list_toc','html_li_default',true);
+            $out .= '</div>'.DOKU_LF.'</div>'.DOKU_LF;
+            $out .= '<!-- TOC END -->'.DOKU_LF;
+            return $out;
     }
 
 }
