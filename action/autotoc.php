@@ -286,7 +286,6 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
                     break;
                 case 'inlinetoc':
                     $tocVariant = 'dw__inlinetoc';
-                    $tocVariant = 'toc_inline';
                     break;
                 default:
                     return '';
