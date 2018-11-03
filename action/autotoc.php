@@ -97,13 +97,14 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
             return;
         }
 
+        // retrieve toc parameters from metadata storage
         $metadata =& $event->data['current']['plugin'][$this->getPluginName()];
         $tocDisplay = $metadata['toc']['display'] ?? $this->getConf('tocDisplay');
 
         // 直後にTOCを表示する見だしの識別ID hid0を探す（空見だしも対象）
         // xhtml_rendererの headerメソッドは、title0 を引数とするため、
         // アクセスには title0ベースの 識別ID hid0 が有用
-        $toc_hid0 = 0;
+        $toc_hid0 = '';
         if ($tocDisplay == '0') {
             // after the First any level heading
             $toc_hid0 = $toc[0]['hid0'];
@@ -119,7 +120,11 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
         }
 
         // store toc_hid0 into matadata storage
-        $metadata['toc']['hid'] = $toc_hid0 ?: null;
+        if ($toc_hid0) {
+            // xhtml renderer側で <!-- TOC_HERE --> をセットする
+            $metadata['toc']['display'] = 'toc';
+            $metadata['toc']['hid'] = $toc_hid0;
+        }
     }
 
     /**
@@ -180,13 +185,16 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
             $toc = [];
         }
 
-        if ($event->name == 'TPL_TOC_RENDER') {
-            $event->data = $toc;
-        } else if ($event->name == 'TPL_CONTENT_DISPLAY') {
-            return $this->html_TOC($toc, $metadata['toc']);
-        } else {
-            return $toc;
-        }
+        switch ($event->name) {
+            case 'TPL_TOC_RENDER':
+                $event->data = $toc;
+                return;
+            case 'TPL_CONTENT_DISPLAY':
+                // build html of the table of contents
+                return $this->html_TOC($toc, $metadata['toc']);
+            default:
+                return $toc;
+        } // end of switch
     }
 
     /**
@@ -213,8 +221,12 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
         $metadata =& $INFO['meta']['plugin'][$this->getPluginName()];
         $tocProps = $metadata['toc'];
 
+        // return if no placeholder has rendered
+        if (!isset($tocProps['display']) || ($tocProps['display'] == 'none')) {
+            return;
+        }
+
         $tocDisplay = $tocProps['display'] ?? 'toc'; // 未設定時は標準TOC
-        if($tocDisplay == 'none') return;
 
         $search = '<!-- '.strtoupper($tocDisplay).'_HERE -->';
 
