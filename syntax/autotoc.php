@@ -74,16 +74,14 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
             $tocState = (substr($name, 0, 6) == 'CLOSED') ? -1 : null;
             $tocDisplay = isset($tocState) ? substr($name, 7) : $name;  // place holder name
             $tocDisplay = strtolower($tocDisplay);
-            $tocVariant = ($name == 'inlinetoc') ? 'toc_inline' : null;
         }
 
         $props = array_filter( // remove null values
                 [
-                    'display'     => $tocDisplay, // TOC box 表示位置 PLACEHOLDER名
+                    'display'     => $tocDisplay, // TOC box PlaceHolder名or表示位置
                     'state'       => $tocState,   // TOC box 開閉状態 -1:close
                     'toptoclevel' => $topLv,      // TOC 見だし範囲の上位レベル
                     'maxtoclevel' => $maxLv,      // TOC 見だし範囲の下位レベル
-                    'variant'     => $tocVariant, // TOC box 基本デザイン TOC or INLINETOC
                     'class'       => $tocClass,   // TOC box 微調整用CSSクラス名
                 ],
                 function($v) {
@@ -118,7 +116,7 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
                 if (!isset($tocProps[$ID])) {
                     $tocProps[$ID] = [];
                 }
-                if ($type == 0) {
+                if ($type == 0) { // macro
                     $tocProps[$ID] += $props; // if key exists, the value is kept
                 } else {
                     $tocDisplay = $tocProps[$ID]['display'];

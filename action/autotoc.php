@@ -78,46 +78,49 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
     /**
      * PARSER_METADATA_RENDER event handler
      *
-     * 直後にTOCを表示する見だしを探す（空見だしも対象）
+     * Find toc box position in accordance with tocDisplay config
+     * 直後にTOCを表示する見だしをtableofcontentsから探す（空見だしも対象）
      */
     function find_TocPosition(Doku_Event $event) {
         global $ID, $conf;
 
-        $toc =& $event->data['current']['description']['tableofcontents'];
-        if (!isset($toc)) return;
-
-        $notoc = !$event->data['current']['internal']['toc'];
-
-        if ( $notoc || (empty($toc))
-            || ($conf['tocminheads'] == 0) || (count($toc) < $conf['tocminheads'])
-        ) {
-            // ~~NOTOC~~指定ある、あるいは 見だし数が0、
-            // または、TOC見出し表示数下限値 の設定を満足しない場合
-            // auto TOCは表示しない。 ここで終了
-            return;
-        }
+        $tocDisplay = $this->getConf('tocDisplay');
+        if(!in_array($tocDisplay, ['0','1','2'])) return;
 
         // retrieve toc parameters from metadata storage
         $metadata =& $event->data['current']['plugin'][$this->getPluginName()];
-        $tocDisplay = $metadata['toc']['display'] ?? $this->getConf('tocDisplay');
 
+        // toc will be rendered by {{TOC|INLINETOC}}
+        if(isset($metadata['toc']['display'])) return;
+
+        // auto toc disabled by ~~NOTOC~~ or tocminheads config setting
+        $notoc = !$event->data['current']['internal']['toc'];
+        if($notoc || ($conf['tocminheads'] == 0)) return;
+
+        // no heading in the page
+        $toc =& $event->data['current']['description']['tableofcontents'];
+        if(!isset($toc) || empty($toc)) return;
+
+        // now worth to seek potential toc box position from tableofcontents
         // 直後にTOCを表示する見だしの識別ID hid0を探す（空見だしも対象）
         // xhtml_rendererの headerメソッドは、title0 を引数とするため、
         // アクセスには title0ベースの 識別ID hid0 が有用
-        $toc_hid0 = '';
-        if ($tocDisplay == '0') {
-            // after the First any level heading
-            $toc_hid0 = $toc[0]['hid0'];
 
-        } elseif (in_array($tocDisplay, ['1','2'])) {
-            // after the First Level 1 or Level 2 heading
-            foreach ($toc as $k => $item) {
-                if ($item['level'] == $tocDisplay) {
-                    $toc_hid0 = $item['hid0'];
-                    break;
+        $toc_hid0 = '';
+        switch ($tocDisplay) {
+            case '0': // after the First any level heading
+                $toc_hid0 = $toc[0]['hid0'];
+                break;
+            case '1': // after the First Level 1 heading
+            case '2': // after the First Level 2 heading
+                foreach ($toc as $k => $item) {
+                    if ($item['level'] == $tocDisplay) {
+                        $toc_hid0 = $item['hid0'];
+                        break;
+                    }
                 }
-            }
-        }
+                break;
+        } // end of switch
 
         // store toc_hid0 into matadata storage
         if ($toc_hid0) {
@@ -265,11 +268,10 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
         if(!count($toc)) return '';
 
             /*
-                    'display'     => $tocDisplay, // TOC box 表示位置 PLACEHOLDER名
+                    'display'     => $tocDisplay, // TOC box PlaceHolder名or表示位置
                     'state'       => $tocState,   // TOC box 開閉状態 -1:close
                     'toptoclevel' => $topLv,      // TOC 見だし範囲の上位レベル
                     'maxtoclevel' => $maxLv,      // TOC 見だし範囲の下位レベル
-                    'variant'     => $tocVariant, // TOC box 基本デザイン TOC or INLINETOC
                     'class'       => $tocClass,   // TOC box 微調整用CSSクラス名
             */
 
@@ -282,7 +284,7 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
                 case 'none':
                     return '';
                 case 'toc':
-                    $tocVariant = 'dw__toc';
+                    $tocVariant = 'dw__toc'; // TOC box basic design (CSS class)
                     break;
                 case 'inlinetoc':
                     $tocVariant = 'dw__inlinetoc';
