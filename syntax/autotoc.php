@@ -72,7 +72,7 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
             // PLACEHOLDER を出力して、TPL_CONTENT_DISPLAY イベントで置き換える
 
             $tocState = (substr($name, 0, 6) == 'CLOSED') ? -1 : null;
-            $tocDisplay = isset($tocState) ? substr($name, 6) : $name;  // place holder name
+            $tocDisplay = isset($tocState) ? substr($name, 7) : $name;  // place holder name
             $tocDisplay = strtolower($tocDisplay);
             $tocVariant = ($name == 'inlinetoc') ? 'toc_inline' : null;
         }
