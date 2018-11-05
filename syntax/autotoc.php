@@ -51,16 +51,15 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
         [$name, $param] = explode(' ', substr($match, 2, -2), 2);
         [$topLv, $maxLv, $tocClass] = $tocTweak->parse($param);
 
-        if ($type == 0) { // macro
+        if ($type == 0) { // macro appricable both TOC and INLINETOC
 
             switch ($name) {
                 case 'NOTOC':
-                    $handler->_addCall('notoc', array(), $pos);
+                    $handler->_addCall('notoc', array(), $pos); // 他ページのこれは無視すべきか?
                     $tocDisplay = 'none';
                     $type = 1;
                     break;
                 case 'CLOSETOC':
-                    $tocDisplay = 'toc'; // 暫定：本来は設定すべきでない
                     $tocState = -1;
                     break;
                 case 'TOC':
@@ -76,7 +75,7 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
             $tocDisplay = strtolower($tocDisplay);
         }
 
-        $props = array_filter( // remove null values
+        $tocProps = array_filter( // remove null values
                 [
                     'display'     => $tocDisplay, // TOC box PlaceHolder名or表示位置
                     'state'       => $tocState,   // TOC box 開閉状態 -1:close
@@ -88,59 +87,58 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
                         return !is_null($v);
                 }
         );
-        return $data = [$type, $props];
+
+        return $data = [$ID, $tocProps];
     }
 
     /**
      * Create output
      */
     function render($format, Doku_Renderer $renderer, $data) {
-        global $ID;
+        global $ACT, $ID;
+        static $counts; // count toc placeholders appeared in the page
 
-        // ページに複数のTOC （見かけは同じ）を許容する
-        // HTML では id="dw__toc" が振られるので、重複識別用に末尾に番号を付加する
-        // 番号付けには 関数 sectionID() を使う。
-        //     dw__toc, dw__inlinetoc1, dw__toc2, dw__inlinetoc3, ...
-        //     <!-- toc_here -->, <!-- inlinetoc1_here -->, <!-- toc2_here -->, ...
-        // 最初のものには番号が付かないことを利用して、初出のみHTMLに置換する。
-        // 
+        [$id, $props] = $data;
 
-        static $tocProps; // toc box properties of the page
-        static $tocCount; // count toc placeholders appeared in the page
- 
-        [$type, $props] = $data;
- 
         switch ($format) {
             case 'metadata':
-
-                if (!isset($tocProps[$ID])) {
-                    $tocProps[$ID] = [];
-                }
-                if ($type == 0) { // macro
-                    $tocProps[$ID] += $props; // if key exists, the value is kept
-                } else {
-                    $tocDisplay = $tocProps[$ID]['display'];
-                    $tocProps[$ID] = array_merge($tocProps[$ID], $props);
-                    if($tocDisplay === 'none') $tocProps[$ID]['display'] = 'none';
-                }
+                // ページのTOCの見せ方（表示位置は除く）は、自身のページ内で決定する
+                if ($id !== $ID) return false; // 他ページのinstructions は無視する
 
                 // store into matadata storage
                 $metadata =& $renderer->meta['plugin'][$this->getPluginName()];
-                $metadata['toc'] = $tocProps[$ID];
+
+                // add only new key-value pairs, keep already stored data
+                // 先に出現した構文による設定が優先権をもつ
+                $tocProps = ($metadata['toc'] ?? []) + (array) $props;
+
+                $metadata['toc'] = $tocProps;
                 return true;
 
             case 'xhtml':
-                if(!isset($props['display']) || ($props['display'] == 'none')) return false;
+                // 他ページに設置された {{TOC}} or {{INLINEOC}} も考慮する
+                // ただし、~~NOTOC~~ or ~~CLOSETOC~~ は無視する
+                if ( ($props['display'] ?? '') == 'none' ) {
+                    return false;
+                }
 
                 // render PLACEHOLDER, which will be replaced later
                 // through action TPL_CONTENT_DISPLAY event handler
-                if (!isset($tocCount[$ID])) {
-                    $tocId = $props['display'];
-                    $tocCount[$ID] = 0;
+                if (!isset($counts[$id])) {
+                    $tocName = $props['display'];
+                    $counts[$id] = 0;
                 } else {
-                    $tocId = $props['display'].(++$tocCount[$ID]);
+                    $tocName = $props['display'].(++$counts[$id]);
                 }
-                $renderer->doc .= '<!-- '.strtoupper($tocId).'_HERE -->'.DOKU_LF;
+
+                if ($ACT == 'preview') {
+                    $state = $props['state'] ? 'CLOSED_' : '';
+                    $range = $props['toptoclevel'].'-'.$props['toptoclevel'];
+                    $renderer->doc .= '<code>';
+                    $renderer->doc .= hsc('<!-- '.$state.strtoupper($tocName).'_HERE '.$range.' -->');
+                    $renderer->doc .= '</code>'.DOKU_LF;
+                }
+                $renderer->doc .= '<!-- '.strtoupper($tocName).'_HERE -->'.DOKU_LF;
                 return true;
 
         } // end of switch
