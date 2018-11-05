@@ -13,29 +13,37 @@ class helper_plugin_headings extends DokuWiki_Plugin {
      * syntax parser
      */
     function parse($param) {
+        global $conf;
 
         // Ex: {{METATOC 2-4 width18 toc_hierarchical >id#section | title}}
+        $tocProps = [
+            'toptoclevel' => $conf['toptoclevel'], // TOC 見だし範囲の上位レベル
+            'maxtoclevel' => $conf['toptoclevel'], // TOC 見だし範囲の下位レベル
+            'class'       => null,     // TOC box CSSクラス（スペース区切り）
+            'title'       => null,     // TOC box title
+            'page'        => null,     // TOC データのページ名（#開始セクション）
+        ];
 
         // get tocTitle
         if (strpos($param, '|') !== false) {
-            list($param, $tocTitle) = explode('|', $param, 2);
+            [$param, $tocTitle] = explode('|', $param, 2);
             // empty tocTitle will remove h3 'Table of Contents' headline
-            $tocTitle = trim($tocTitle); 
-        } else {
-            $tocTitle = null;
+            $tocProps['title'] = trim($tocTitle); 
         }
 
         // get id#section
-        list($param, $id) = explode('>', $param, 2);
-        list($id, $hash) = array_map('trim', explode('#', $id, 2));
-        $id = cleanID($id).($hash ? '#'.$hash : '');
+        if (strpos($param, '>') !== false) {
+            [$param, $id] = explode('>', $param, 2);
+            [$id, $hash] = array_map('trim', explode('#', $id, 2));
+            $tocProps['page'] = cleanID($id).($hash ? '#'.$hash : '');
+        }
 
         // get other parameters
         $params = explode(' ', $param);
         foreach ($params as $token) {
             if (empty($token)) continue;
 
-            // get TOC generation parameters, like "toptocleevl"-"maxtoclevel"
+            // get TOC generation parameters, like "toptoclevel"-"maxtoclevel"
             if (preg_match('/^(?:(\d+)-(\d+)|^(\-?\d+))$/', $token, $matches)) {
                 if (count($matches) == 4) {
                     if (strpos($matches[3], '-') !== false) {
@@ -51,14 +59,12 @@ class helper_plugin_headings extends DokuWiki_Plugin {
                 if (isset($topLv)) {
                     $topLv = ($topLv < 1) ? 1 : $topLv;
                     $topLv = ($topLv > 5) ? 5 : $topLv;
-                } else {
-                    $topLv = $this->getConf('toptoclevel');
+                    $tocProps['toptoclevel'] = $topLv;
                 }
 
                 if (isset($maxLv)) {
                     $maxLv = ($maxLv > 5) ? 5 : $maxLv;
-                } else {
-                    $maxLv = $this->getConf('maxtoclevel');
+                    $tocProps['maxtoclevel'] = $maxLv;
                 }
                 continue;
             }
@@ -67,14 +73,17 @@ class helper_plugin_headings extends DokuWiki_Plugin {
             if (!preg_match('/[^ A-Za-z0-9_-]/', $token)) {
                 $classes[] = $token;
             }
-        }
+        } // end of foreach
+
         if (!empty($classes)) {
-            $tocClass = implode(' ', $classes);
-        } else {
-            $tocClass = null;
+            $tocProps['class'] = implode(' ', $classes);
         }
 
-        return array($topLv, $maxLv, $tocClass, $tocTitle, $id);
+        // remove null values
+        $tocProps = array_filter( $tocProps,
+                        function($v) { return !is_null($v); }
+        );
+        return $tocProps;
     }
 
     /**

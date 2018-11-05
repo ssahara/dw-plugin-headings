@@ -49,7 +49,6 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
         // parse syntax
         $type = ($match[0] == '~') ? 0 : 1;
         [$name, $param] = explode(' ', substr($match, 2, -2), 2);
-        [$topLv, $maxLv, $tocClass] = $tocTweak->parse($param);
 
         if ($type == 0) { // macro appricable both TOC and INLINETOC
 
@@ -71,22 +70,15 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
             // PLACEHOLDER を出力して、TPL_CONTENT_DISPLAY イベントで置き換える
 
             $tocState = (substr($name, 0, 6) == 'CLOSED') ? -1 : null;
-            $tocDisplay = isset($tocState) ? substr($name, 7) : $name;  // place holder name
-            $tocDisplay = strtolower($tocDisplay);
+            $tocDisplay = strtolower( isset($tocState) ? substr($name, 7) : $name);
         }
 
-        $tocProps = array_filter( // remove null values
-                [
-                    'display'     => $tocDisplay, // TOC box PlaceHolder名or表示位置
-                    'state'       => $tocState,   // TOC box 開閉状態 -1:close
-                    'toptoclevel' => $topLv,      // TOC 見だし範囲の上位レベル
-                    'maxtoclevel' => $maxLv,      // TOC 見だし範囲の下位レベル
-                    'class'       => $tocClass,   // TOC box 微調整用CSSクラス名
-                ],
-                function($v) {
-                        return !is_null($v);
-                }
-        );
+        $tocProps = [];
+        isset($tocDisplay) && $tocProps['display'] = $tocDisplay; // toc, inlinetoc, or none
+        isset($tocState)   && $tocProps['state']   = $tocState;
+
+        // add other toc parameters such as toptoclevel, maxtoclevel
+        $tocProps += $tocTweak->parse($param);
 
         return $data = [$ID, $tocProps];
     }
