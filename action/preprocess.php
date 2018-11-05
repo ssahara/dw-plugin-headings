@@ -17,6 +17,11 @@ class action_plugin_headings_preprocess extends DokuWiki_Action_Plugin {
         $controller->register_hook(
             'PARSER_METADATA_RENDER', 'AFTER', $this, 'extend_TableOfContents', [], -100
         );
+        if (0) { // always false, never registered
+            $controller->register_hook(
+               'TPL_TOC_RENDER', 'BEFORE', $this, 'tpl_toc', []
+            );
+        }
     }
 
 
@@ -59,4 +64,45 @@ class action_plugin_headings_preprocess extends DokuWiki_Action_Plugin {
         unset($metadata['tableofcontents']);
     }
 
+
+    /**
+     * TPL_TOC_RENDER event handler
+     *
+     * Adjust global TOC array according to a given config settings
+     * @see also inc/template.php function tpl_toc($return = false)
+     */
+    function tpl_toc(Doku_Event $event) {
+        global $INFO, $ACT, $conf;
+
+        if ($ACT == 'admin') {
+            $toc = [];
+            // try to load admin plugin TOC
+            if ($plugin = plugin_getRequestAdminPlugin()) {
+                $toc = $plugin->getTOC();
+                $TOC = $toc; // avoid later rebuild
+            }
+            // error_log(' '.$event->name.' admin toc='.var_export($toc,1));
+            $event->data = $toc;
+            return;
+        }
+
+        $notoc = !($INFO['meta']['internal']['toc']); // true if toc should not be displayed
+
+        if ($notoc || ($conf['tocminheads'] == 0)) {
+            $event->data = $toc = [];
+            return;
+        }
+
+        $toc = $INFO['meta']['description']['tableofcontents'] ?? [];
+        foreach ($toc as $k => $item) {
+            if (empty($item['title'])
+                || ($item['level'] < $conf['toptoclevel'])
+                || ($item['level'] > $conf['maxtoclevel'])
+            ) {
+                unset($toc[$k]);
+            }
+            $item['level'] = $item['level'] - $conf['toptoclevel'] +1;
+        }
+        $event->data = (count($toc) < $conf['tocminheads']) ? [] : $toc;
+    }
 }
