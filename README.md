@@ -15,13 +15,14 @@ The hid may be convenient to create section links with shorter name, especially 
 
 #### Dispaly Table of Contents (TOC)
 
-    {{TOC}}       or {{TOC}}            DW built-in TOC box
-    {{INLINETOC}} or {{INLINETOC}}      headline list in rounded box
+    {{TOC}}       or {{!TOC}}            DW built-in TOC box
+    {{INLINETOC}} or {{!INLINETOC}}      Headline list in rounded box
     
-    {{TOC 2-4}}
+    {{TOC 2-4}}          Headlines within level 2 to 3 will appear in the TOC box
     {{INLINETOC 1-3}}
 
 * Heading level parameter (*n-m*) to be shown in the TOC box
+* "!" means embedding the TOC, which consists the page and printable
 
 ----
 
