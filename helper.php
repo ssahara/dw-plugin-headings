@@ -33,9 +33,10 @@ class helper_plugin_headings extends DokuWiki_Plugin {
 
         // get id#section
         if (strpos($param, '>') !== false) {
-            [$param, $id] = explode('>', $param, 2);
-            [$id, $hash] = array_map('trim', explode('#', $id, 2));
-            $tocProps['page'] = cleanID($id).($hash ? '#'.$hash : '');
+            [$param, $page] = explode('>', $param, 2);
+            [$id, $section] = array_map('trim', explode('#', $page, 2));
+            $section = $section ? sectionID($section, $check = false) : '';
+            $tocProps['page'] = cleanID($id).($section ? '#'.$section : '');
         }
 
         // get other parameters
@@ -87,111 +88,49 @@ class helper_plugin_headings extends DokuWiki_Plugin {
     }
 
     /**
-     * Get customized toc array using metadata of the page
-     */
-    function get_metatoc($id, $topLv=null, $maxLv=null, $headline='') {
-        global $ID, $INFO;
-
-        // retrieve TableOfContents from metadata
-        if ($id == $INFO['id']) {
-            $toc = $INFO['meta']['description']['tableofcontents'];
-        } else {
-            $toc = p_get_metadata($id,'description tableofcontents');
-        }
-        if ($toc == null) return array();
-
-        // get interested headline items
-        $toc = $this->_toc($toc, $topLv, $maxLv, $headline);
-
-        // modify toc array items directly within loop by reference
-        foreach ($toc as &$item) {
-            // add properties for toc of that is not current page
-            if ($id != $ID) {
-                // headlines should be found in other wiki page
-                $item['page']  = $id;
-                $item['url']   = wl($id).'#'.$item['hid'];
-                $item['class'] = 'wikilink1';
-            } else {
-                // headlines in current page (internal link)
-                $item['url']  = '#'.$item['hid'];
-            }
-        } // end of foreach
-        unset($item); // break the reference with the last item
-        return $toc;
-    }
-
-    /**
      * toc array filter
      */
-    function _toc(array $toc, $topLv=null, $maxLv=null, $headline='') {
+    function _toc(array $toc, $topLv=null, $maxLv=null, $start_hid='', $depth=5) {
         global $conf;
-        $topLv = isset($topLv) ? $topLv : $this->getConf('toptoclevel');
-        $maxLv = isset($maxLv) ? $maxLv : $this->getConf('maxtoclevel');
+        $toptoclevel = empty($topLv) ? $this->getConf('toptoclevel') : $tocLv;
+        $maxtoclevel = empty($maxLv) ? $this->getConf('maxtoclevel') : $maxLv;
 
-        $headline_matched = empty($headline);
-        $headline_level   = null;
-        $items = array();
-
-        foreach ($toc as $item) {
-            // skip non-interested toc entries
-            if ($headline) {
-                if (!$headline_matched) {
-                    if ($item['hid'] == $headline) {
-                        $headline_matched = true;
-                        $headline_level = $item['level'];
-                    } else {
-                        continue;
+        // first step: get headings starting specified hid and its sub-sections
+        if ($start_hid) {
+            foreach ($toc as $k => $item) {
+                if (!isset($start_hid_level)) {
+                    $start_hid_level = ($item['hid'] == $start_hid) ? $item['level'] : null;
+                    if (!isset($start_hid_level)) {
+                        unset($toc[$k]); // 
+                    } else continue;
+                } elseif ($start_hid_level > 0) {
+                    if ($item['level'] > $start_hid_level + $depth) {
+                        unset($toc[$k]);
+                    }  elseif ($item['level'] <= $start_hid_level) {
+                        unset($toc[$k]);
+                        $start_hid_level = -$start_hid_level; // reverse sign of number
                     }
-                } else {
-                    if ($item['level'] <= $headline_level) {
-                        $headline_matched = false;
-                        $headline_level = null;
-                        continue;
-                    }
+                } else { // $start_hid_level < 0
+                        unset($toc[$k]);
                 }
-            }
+            } // end of foreach
 
-            // get headline level in real page
-            $Lv = $item['level'] + $conf['toptoclevel'] -1;
-
-            // exclude out-of-range item based on headline level
-            if (($Lv < $topLv)||($Lv > $maxLv)) {
-                continue;
-            } else { // interested toc entry
-                $item['level'] = $Lv - $topLv +1;
-            }
-            $items[] = $item;
+            // decide the upper level for toc hierarchy adjustment
+            $start_hid_level = $start_hid_level ?? 0;
+            $toptoclevel = max($toptoclevel, abs($start_hid_level));
         }
-        return $items;
+
+        // second step: exclude empty headings, toc hierarchy adjustment
+        foreach ($toc as $k => $item) {
+            if (empty($item['title'])
+                || ($item['level'] < $toptoclevel)
+                || ($item['level'] > $maxtoclevel)
+            ) {
+                unset($toc[$k]);
+            }
+            $item['level'] = $item['level'] - $toptoclevel +1;
+        }
+        return $toc;
     }
-
-    /**
-     * convert auto-toc array to XHTML tailored with class attibute
-     */
-    function html_toc(array $toc, ...$params) {
-        global $INFO;
-        $meta =& $INFO['meta']['toc'];
-
-        if ($this->getConf('tocminheads') == 0) return '';
-
-        if (count($params)) {
-            // apply toc array filter
-            list($topLv, $maxLv, $headline) = $params;
-            $toc = $this->_toc($toc, $topLv, $maxLv, $headline);
-        }
-
-        if (count($toc) < $this->getConf('tocminheads')) {
-            $html = '';
-        } else {
-            $html = html_TOC($toc); // use function in inc/html.php
-            if ($html && isset($meta['class'])) {
-                $search =  '<div id="dw__toc"';
-                $replace = $search.' class="'.hsc($meta['class']).'"';
-                $html = str_replace($search, $replace, $html);
-            }
-        }
-        return $html;
-    }
-
 }
 
