@@ -90,7 +90,7 @@ class helper_plugin_headings extends DokuWiki_Plugin {
     /**
      * toc array filter
      */
-    function _toc(array $toc, $topLv=null, $maxLv=null, $start_hid='', $depth=5) {
+    function toc_filter(array $toc, $topLv=null, $maxLv=null, $start_hid='', $depth=5) {
         global $conf;
         $toptoclevel = empty($topLv) ? $this->getConf('toptoclevel') : $tocLv;
         $maxtoclevel = empty($maxLv) ? $this->getConf('maxtoclevel') : $maxLv;
@@ -101,13 +101,13 @@ class helper_plugin_headings extends DokuWiki_Plugin {
                 if (!isset($start_hid_level)) {
                     $start_hid_level = ($item['hid'] == $start_hid) ? $item['level'] : null;
                     if (!isset($start_hid_level)) {
-                        unset($toc[$k]); // 
+                        unset($toc[$k]); // start_hid has not found yet
                     } else continue;
                 } elseif ($start_hid_level > 0) {
                     if ($item['level'] > $start_hid_level + $depth) {
-                        unset($toc[$k]);
+                        unset($toc[$k]); // too deeper items
                     }  elseif ($item['level'] <= $start_hid_level) {
-                        unset($toc[$k]);
+                        unset($toc[$k]); // out of scope
                         $start_hid_level = -$start_hid_level; // reverse sign of number
                     }
                 } else { // $start_hid_level < 0
