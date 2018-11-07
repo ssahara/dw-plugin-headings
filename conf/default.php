@@ -8,4 +8,4 @@
 $conf['header_formatting'] = 0; //experimetal
 
 // Extends DokuWiki original Table of Contents (TOC) feature
-$conf['tocDisplay'] = 'default';
+$conf['tocDisplay'] = 'disabled';

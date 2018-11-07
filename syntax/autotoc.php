@@ -33,8 +33,12 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
     }
 
     function connectTo($mode) {
-        $this->Lexer->addSpecialPattern($this->pattern[0], $mode, $this->mode);
-        $this->Lexer->addSpecialPattern($this->pattern[1], $mode, $this->mode);
+        always: {
+            $this->Lexer->addSpecialPattern($this->pattern[0], $mode, $this->mode);
+        }
+        if ($this->getConf('tocDisplay') != 'disabled') {
+            $this->Lexer->addSpecialPattern($this->pattern[1], $mode, $this->mode);
+        }
     }
 
     /**

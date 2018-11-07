@@ -14,23 +14,25 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
      * Register event handlers
      */
     function register(Doku_Event_Handler $controller) {
-
-        $controller->register_hook(
-            'DOKUWIKI_STARTED', 'BEFORE', $this, '_exportToJSINFO', []
-        );
-        $controller->register_hook(
-            'TPL_METAHEADER_OUTPUT', 'BEFORE', $this, '_hookjs', []
-        );
-
-        $controller->register_hook(
-            'PARSER_METADATA_RENDER', 'AFTER', $this, 'find_TocPosition', []
-        );
-        $controller->register_hook(
-            'TPL_TOC_RENDER', 'BEFORE', $this, 'tpl_toc', []
-        );
-        $controller->register_hook(
-            'TPL_CONTENT_DISPLAY', 'BEFORE', $this, 'show_HtmlToc', []
-        );
+        always: {
+            $controller->register_hook(
+                'DOKUWIKI_STARTED', 'BEFORE', $this, '_exportToJSINFO', []
+            );
+            $controller->register_hook(
+                'TPL_METAHEADER_OUTPUT', 'BEFORE', $this, '_hookjs', []
+            );
+        }
+        if ($this->getConf('tocDisplay') != 'disabled') {
+            $controller->register_hook(
+                'PARSER_METADATA_RENDER', 'AFTER', $this, 'find_TocPosition', []
+            );
+            $controller->register_hook(
+                'TPL_TOC_RENDER', 'BEFORE', $this, 'tpl_toc', []
+            );
+            $controller->register_hook(
+                'TPL_CONTENT_DISPLAY', 'BEFORE', $this, 'show_HtmlToc', []
+            );
+        }
     }
 
 

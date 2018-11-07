@@ -14,10 +14,12 @@ class action_plugin_headings_preprocess extends DokuWiki_Action_Plugin {
      * Register event handlers
      */
     function register(Doku_Event_Handler $controller) {
-        $controller->register_hook(
-            'PARSER_METADATA_RENDER', 'AFTER', $this, 'extend_TableOfContents', [], -100
-        );
-        if (0) { // always false, never registered
+        always: { // event handler hook must be executed "earlier" than default
+            $controller->register_hook(
+                'PARSER_METADATA_RENDER', 'AFTER', $this, 'extend_TableOfContents', [], -100
+            );
+        }
+        if ($this->getConf('tocDisplay') == 'disabled') {
             $controller->register_hook(
                'TPL_TOC_RENDER', 'BEFORE', $this, 'tpl_toc', []
             );
