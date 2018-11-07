@@ -11,7 +11,7 @@ $lang['header_formatting'] = '【実験的】見出し文字に装飾記法を�
 // Extends DokuWiki original Table of Contents (TOC) feature
 $lang['tocDisplay'] = '目次ボックスの配置 (auto-TOC box)';
   $lang['tocDisplay_o_disabled'] = 'プラグインによるTOC機能を使用しない';
-  $lang['tocDisplay_o_none'] = '表示を抑制（自動では表示されない）';
+  $lang['tocDisplay_o_none'] = 'TOCの自動表示を抑制する';
   $lang['tocDisplay_o_top']  = 'DokuWiki標準の位置 (ページ右上隅)';
   $lang['tocDisplay_o_0']    = '最初の見だしの後';
   $lang['tocDisplay_o_1']    = '最初の第1レベル見出しの後';
