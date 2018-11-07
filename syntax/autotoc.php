@@ -125,7 +125,7 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
 
                 if ($ACT == 'preview') {
                     $state = $props['state'] ? 'CLOSED_' : '';
-                    $range = $props['toptoclevel'].'-'.$props['toptoclevel'];
+                    $range = $props['toptoclevel'].'-'.$props['maxtoclevel'];
                     $renderer->doc .= '<code>';
                     $renderer->doc .= hsc('<!-- '.$state.strtoupper($tocName).'_HERE '.$range.' -->');
                     $renderer->doc .= '</code>'.DOKU_LF;

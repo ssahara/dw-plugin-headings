@@ -10,16 +10,6 @@ if(!defined('DOKU_INC')) die();
 
 class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
 
-    // keep toc config parameters
-    private $tocminheads, $toptoclevel, $maxtoclevel;
-
-    function __construct() {
-        global $conf;
-        $this->tocminheads = $conf['tocminheads'];
-        $this->toptoclevel = $conf['toptoclevel'];
-        $this->maxtoclevel = $conf['maxtoclevel'];
-    }
-
     /**
      * Register event handlers
      */
