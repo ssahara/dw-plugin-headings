@@ -15,13 +15,13 @@ class helper_plugin_headings extends DokuWiki_Plugin {
     function parse($param) {
         global $conf;
 
-        // Ex: {{METATOC 2-4 width18 toc_hierarchical >id#section | title}}
+        // Ex: {{!TOC 2-4 width18 toc_hierarchical >id#section | title}}
         $tocProps = [
-            'toptoclevel' => $conf['toptoclevel'], // TOC 見だし範囲の上位レベル
-            'maxtoclevel' => $conf['toptoclevel'], // TOC 見だし範囲の下位レベル
-            'class'       => null,     // TOC box CSSクラス（スペース区切り）
+            'toptoclevel' => $conf['toptoclevel'], // TOC upper level
+            'maxtoclevel' => $conf['maxtoclevel'], // TOC lower level
+            'class'       => null,     // TOC box CSS selector (space delimited)
             'title'       => null,     // TOC box title
-            'page'        => null,     // TOC データのページ名（#開始セクション）
+            'page'        => null,     // page id & start hid for TOC (id#start_hid)
         ];
 
         // get tocTitle
