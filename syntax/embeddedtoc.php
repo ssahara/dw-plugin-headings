@@ -48,10 +48,11 @@ class syntax_plugin_headings_embeddedtoc extends DokuWiki_Syntax_Plugin {
         // usage : {{!TOC 2-4 toc_hierarchical >id#section | title}}
 
         // parse syntax
+        $type = 2;
         [$name, $param] = explode(' ', substr($match, 3, -2), 2);
 
         // resolve toc parameters such as toptoclevel, maxtoclevel
-        $tocProps = $tocTweak->parse($param);
+        $tocProps = $param ? $tocTweak->parse($param) : [];
 
         if (isset($tocProps['page']) && ($tocProps['page'][0] == '#')) {
             $tocProps['page'] = $ID.$tocProps['page'];
@@ -84,12 +85,14 @@ class syntax_plugin_headings_embeddedtoc extends DokuWiki_Syntax_Plugin {
         switch ($format) {
             case 'metadata':
                 global $ID;
-                if($id !== $ID) return false;
+                if ($id !== $ID) return false; // ignore instructions for other page
+
+                // store into matadata storage
+                $metadata =& $renderer->meta['plugin'][$this->getPluginName()];
 
                 if (isset($page) && $page != $ID) { // not current page
                     // set dependency info for PARSER_CACHE_USE event handler
                     $files = [ metaFN($page,'.meta') ];
-                    $matadata =& $renderer->meta['plugin'][$this->getPluginName()];
                     $matadata['depends'] = isset($matadata['depends'])
                         ? array_merge($matadata['depends'], $files)
                         : $files;

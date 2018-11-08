@@ -54,16 +54,19 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
         $type = ($match[0] == '~') ? 0 : 1;
         [$name, $param] = explode(' ', substr($match, 2, -2), 2);
 
+        // resolve toc parameters such as toptoclevel, maxtoclevel, class, title
+        $tocProps = $param ? $tocTweak->parse($param) : [];
+
         if ($type == 0) { // macro appricable both TOC and INLINETOC
 
             switch ($name) {
                 case 'NOTOC':
                     $handler->_addCall('notoc', array(), $pos); // 他ページのこれは無視すべきか?
-                    $tocDisplay = 'none';
+                    $tocProps['display'] = 'none';
                     $type = 1;
                     break;
                 case 'CLOSETOC':
-                    $tocState = -1;
+                    $tocProps['state'] = -1;
                     break;
                 case 'TOC':
                     break;
@@ -73,16 +76,14 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
             // DokiWiki original TOC or alternative INLINETOC
             // PLACEHOLDER を出力して、TPL_CONTENT_DISPLAY イベントで置き換える
 
-            $tocState = (substr($name, 0, 6) == 'CLOSED') ? -1 : null;
-            $tocDisplay = strtolower( isset($tocState) ? substr($name, 7) : $name);
+            if (substr($name, 0, 6) == 'CLOSED') {
+                $tocProps['state'] = -1;
+                $tocProps['display'] = strtolower(substr($name, 7));
+            } else {
+                $tocProps['display'] = strtolower($name);
+            }
         }
 
-        $tocProps = [];
-        isset($tocDisplay) && $tocProps['display'] = $tocDisplay; // toc, inlinetoc, or none
-        isset($tocState)   && $tocProps['state']   = $tocState;
-
-        // add other toc parameters such as toptoclevel, maxtoclevel
-        $tocProps += $tocTweak->parse($param);
 
         return $data = [$ID, $tocProps];
     }
@@ -91,15 +92,14 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
      * Create output
      */
     function render($format, Doku_Renderer $renderer, $data) {
-        global $ACT, $ID;
-        static $counts; // count toc placeholders appeared in the page
 
         [$id, $props] = $data;
 
         switch ($format) {
             case 'metadata':
+                global $ID;
                 // ページのTOCの見せ方（表示位置は除く）は、自身のページ内で決定する
-                if ($id !== $ID) return false; // 他ページのinstructions は無視する
+                if ($id !== $ID) return false; // ignore instructions for other page
 
                 // store into matadata storage
                 $metadata =& $renderer->meta['plugin'][$this->getPluginName()];
@@ -112,6 +112,9 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
                 return true;
 
             case 'xhtml':
+                global $INFO, $ACT;
+                static $counts; // count toc placeholders appeared in the page
+
                 // 他ページに設置された {{TOC}} or {{INLINEOC}} も考慮する
                 // ただし、~~NOTOC~~ or ~~CLOSETOC~~ は無視する
                 if ( ($props['display'] ?? '') == 'none' ) {
