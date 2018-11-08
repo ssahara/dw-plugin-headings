@@ -8,7 +8,7 @@
 
 if(!defined('DOKU_INC')) die();
 
-class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
+class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
 
     /**
      * Register event handlers
@@ -23,6 +23,9 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
             );
         }
         if ($this->getConf('tocDisplay') != 'disabled') {
+            $controller->register_hook(
+                'PARSER_CACHE_USE', 'BEFORE', $this, 'handleParserCache', []
+            );
             $controller->register_hook(
                 'PARSER_METADATA_RENDER', 'AFTER', $this, 'find_TocPosition', []
             );
@@ -66,6 +69,33 @@ class action_plugin_headings_autotoc extends DokuWiki_Action_Plugin {
     }
 
 
+
+    /**
+     * PARSER_CACHE_USE event handler
+     *
+     * Manipulate cache validity (to get correct toc of other page)
+     */
+    function handleParserCache(Doku_Event $event) {
+        $cache =& $event->data;
+        if (!$cache->page) return;
+
+        switch ($cache->mode) {
+            case 'i':        // instruction cache
+            case 'metadata': // metadata cache
+                break;
+            case 'xhtml':    // xhtml cache
+                // request check with additional dependent files
+                $metadata_key = 'plugin '.$this->getPluginName();
+                $metadata_key.= ' '.'depends';
+                $depends = p_get_metadata($cache->page, $metadata_key);
+                if (!$depends) break;
+
+                $cache->depends['files'] = isset($cache->depends['files'])
+                        ? array_merge($cache->depends['files'], $depends)
+                        : $depends;
+        } // end of switch
+        return;
+    }
 
     /**
      * PARSER_METADATA_RENDER event handler
