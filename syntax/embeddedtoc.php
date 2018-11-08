@@ -29,11 +29,11 @@ class syntax_plugin_headings_embeddedtoc extends DokuWiki_Syntax_Plugin {
         $this->mode = substr(get_class($this), 7);
 
         // syntax pattern
-        $this->pattern[5] = '{{!(?:INLINETOC|TOC)\b.*?}}';
+        $this->pattern[2] = '{{!(?:INLINETOC|TOC)\b.*?}}';
     }
 
     function connectTo($mode) {
-        $this->Lexer->addSpecialPattern($this->pattern[5], $mode, $this->mode);
+        $this->Lexer->addSpecialPattern($this->pattern[2], $mode, $this->mode);
     }
 
     /**
@@ -53,9 +53,7 @@ class syntax_plugin_headings_embeddedtoc extends DokuWiki_Syntax_Plugin {
         // resolve toc parameters such as toptoclevel, maxtoclevel
         $tocProps = $tocTweak->parse($param);
 
-        if (!isset($tocProps['page'])) {
-            $tocProps['page'] = $ID;
-        } elseif ($tocProps['page'][0] == '#') {
+        if (isset($tocProps['page']) && ($tocProps['page'][0] == '#')) {
             $tocProps['page'] = $ID.$tocProps['page'];
         }
 
@@ -69,56 +67,64 @@ class syntax_plugin_headings_embeddedtoc extends DokuWiki_Syntax_Plugin {
             $tocProps['class'] = $tocStyle;
         }
 
-        return $data = $tocProps;
+        return $data = [$ID, $tocProps];
     }
 
     /**
      * Create output
      */
     function render($format, Doku_Renderer $renderer, $data) {
-        global $ID, $conf, $lang;
+        global $conf, $lang;
 
-        $tocProps = $data;
-        [$id, $section] = explode('#', $tocProps['page']);
+        [$id, $tocProps] = $data;
+        if (isset($tocProps['page'])) {
+            [$page, $section] = explode('#', $tocProps['page']);
+        }
 
         switch ($format) {
             case 'metadata':
-                if ($id != $ID) { // not current page
+                global $ID;
+                if($id !== $ID) return false;
+
+                if (isset($page) && $page != $ID) { // not current page
                     // set dependency info for PARSER_CACHE_USE event handler
-                    $renderer->meta['relation']['toctweak'][] = metaFN($id,'.meta');
+                    $files = [ metaFN($page,'.meta') ];
+                    $matadata =& $renderer->meta['plugin'][$this->getPluginName()];
+                    $matadata['depends'] = isset($matadata['depends'])
+                        ? array_merge($matadata['depends'], $files)
+                        : $files;
                 }
                 return true;
 
             case 'xhtml':
-                global $INFO;
+                global $INFO, $ACT;
 
                 // retrieve TableOfContents from metadata
-                if ($id == $INFO['id']) {
+                $page = $page ?? $INFO['id'];
+                if ($page == $INFO['id']) {
                     $toc = $INFO['meta']['description']['tableofcontents'];
                 } else {
-                    $toc = p_get_metadata($id,'description tableofcontents');
+                    $toc = p_get_metadata($page,'description tableofcontents');
                 }
                 if ($toc == null) $toc = [];
 
                 // load helper object
                 isset($tocTweak) || $tocTweak = $this->loadHelper($this->getPluginName());
 
-                // retrieve TableOfContents from metadata
+                // filter toc items
                 $topLv = $tocProps['toptoclevel'];
                 $maxLv = $tocProps['maxtoclevel'];
-
-                // filter toc items
                 $toc = $tocTweak->toc_filter($toc, $topLv, $maxLv, $section);
 
                 // modify toc items directly within loop by reference
                 foreach ($toc as &$item) {
-                    if ($id == $INFO['id']) {
+                    if ($page == $INFO['id']) {
                         // headings found in current page (internal link)
                         $item['url']  = '#'.$item['hid'];
                     } else {
                         // headings found in other wiki page
-                        $item['page']  = $id;
-                        $item['url']   = wl($id).'#'.$item['hid'];
+                        $item['page']  = $page;
+                        $item['url']   = wl($page).'#'.$item['hid'];
                         $item['class'] = 'wikilink1';
                     }
                 } // end of foreach
@@ -128,9 +134,14 @@ class syntax_plugin_headings_embeddedtoc extends DokuWiki_Syntax_Plugin {
                 $attr['class'] = $tocProps['class'];
                 $title = $tocProps['title'] ?? $lang['toc'];
 
+                if ($ACT == 'preview') {
+                    $note = '<!-- Embedded TOC '.$tocProps['page'].' -->';
+                } else $note = '';
+
                 $html = '<!-- EMBEDDED TOC START -->'.DOKU_LF;
                 $html.= '<div '.buildAttributes($attr).'>'.DOKU_LF;
                 $html.= $title ? '<h3>'.hsc($title).'</h3>'.DOKU_LF : '';
+                $html.= $note ? '<code style="font-size:80%">'.hsc($note).'</code>'.DOKU_LF : '';
                 $html.= '<div>'.DOKU_LF;
                 $html.= empty($toc)
                         ? 'nothing to show'
