@@ -17,6 +17,7 @@ class syntax_plugin_headings_embeddedtoc extends DokuWiki_Syntax_Plugin {
     protected $tocStyle = array(  // default toc visual design
         'TOC' => 'toc_dokuwiki',
         'INLINETOC' => 'toc_inline',
+        'SIDETOC' => 'toc_shrinken',
     );
 
     /**
@@ -29,11 +30,13 @@ class syntax_plugin_headings_embeddedtoc extends DokuWiki_Syntax_Plugin {
         $this->mode = substr(get_class($this), 7);
 
         // syntax pattern
-        $this->pattern[2] = '{{!(?:INLINETOC|TOC)\b.*?}}';
+        $this->pattern[2] = '{{!(?:SIDE|INLINE)?TOC\b.*?}}';
     }
 
     function connectTo($mode) {
-        $this->Lexer->addSpecialPattern($this->pattern[2], $mode, $this->mode);
+        if ($this->getConf('tocDisplay') != 'disabled') {
+            $this->Lexer->addSpecialPattern($this->pattern[2], $mode, $this->mode);
+        }
     }
 
     /**
@@ -53,6 +56,11 @@ class syntax_plugin_headings_embeddedtoc extends DokuWiki_Syntax_Plugin {
 
         // resolve toc parameters such as toptoclevel, maxtoclevel
         $tocProps = $param ? $tocTweak->parse($param) : [];
+
+        if ($name == 'SIDETOC') {
+            // disable using cache
+            $handler->_addCall('nocache', array(), $pos);
+        }
 
         if (isset($tocProps['page']) && ($tocProps['page'][0] == '#')) {
             $tocProps['page'] = $ID.$tocProps['page'];
