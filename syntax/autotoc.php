@@ -61,7 +61,7 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
 
             switch ($name) {
                 case 'NOTOC':
-                    $handler->_addCall('notoc', array(), $pos); // 他ページのこれは無視すべきか?
+                    $handler->_addCall('notoc', array(), $pos);
                     $tocProps['display'] = 'none';
                     $type = 1;
                     break;

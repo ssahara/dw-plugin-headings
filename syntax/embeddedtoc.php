@@ -1,7 +1,9 @@
 <?php
 /**
  * Heading PreProcessor plugin for DokuWiki; syntax component
- * 
+ *
+ * Embed TOC as page contents.
+ *
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Satoshi Sahara <sahara.satoshi@gmail.com>
  */
@@ -14,7 +16,7 @@ class syntax_plugin_headings_embeddedtoc extends DokuWiki_Syntax_Plugin {
     function getPType(){ return 'block'; }
     function getSort() { return 30; }
 
-    protected $tocStyle = array(  // default toc visual design
+    protected $tocStyle = array(  // toc visual design
         'TOC' => 'toc_dokuwiki',
         'INLINETOC' => 'toc_inline',
         'SIDETOC' => 'toc_shrinken',
