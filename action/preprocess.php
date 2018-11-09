@@ -2,6 +2,8 @@
 /**
  * Heading PreProcessor plugin for DokuWiki; action component
  *
+ * Extends TableOfContents database that holds All headings of the page
+ *
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Satoshi Sahara <sahara.satoshi@gmail.com>
  */

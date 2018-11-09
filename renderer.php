@@ -68,7 +68,7 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
         static $map;
 
         if (!isset($map)) {
-            $toc = &$INFO['meta']['description']['tableofcontents'] ?? [];
+            $toc =& $INFO['meta']['description']['tableofcontents'] ?? [];
             $map = array_column($toc, null, 'hid0');
         }
 
@@ -156,7 +156,6 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
         // append TOC_HERE placeholder if necessary
         toc_here_check: {
             $metadata =& $INFO['meta']['plugin'][$this->getPluginName()];
-            // 直後にTOCを表示する見だしの場合
             $toc_hid = $metadata['toc']['hid'] ?? '#';
             if ($toc_hid == $hid0) {
                 $this->doc .= '<!-- TOC_HERE -->'.DOKU_LF;

@@ -2,6 +2,8 @@
 /**
  * Heading PreProcessor plugin for DokuWiki; action component
  *
+ * Extends TOC feature.
+ *
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Satoshi Sahara <sahara.satoshi@gmail.com>
  */
@@ -170,7 +172,6 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
                 $toc = $plugin->getTOC();
                 $TOC = $toc; // avoid later rebuild
             }
-            // error_log(' '.$event->name.' admin toc='.var_export($toc,1));
             $event->data = $toc;
             return;
         }
@@ -183,8 +184,8 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
         $tocminheads = $conf['tocminheads'];
 
         if ($event->name == 'TPL_TOC_RENDER') {
-            if ($tocDisplay != 'default') {
-                // stop prepending TOC box to the default position (top right corner)
+            if ($tocDisplay != 'top') {
+                // stop prepending TOC box to the original position (top right corner)
                 // of the page by empty toc
                 // note: this method is called again to build html toc
                 //       from TPL_CONTENT_DISPLAY event handler
@@ -226,7 +227,7 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
      * TPL_CONTENT_DISPLAY
      *
      * Insert XHTML of auto-toc at dedicated place
-     *     'default': top of the content
+     *     'top': top of the content (DokuWiki default)
      * The placeholder (<!-- TOC_HERE|INLINETOC_HERE -->) has been rendered
      * according to "tocDisplay" config by xhtml_renderer header method where:
      *     0: after the first heading
@@ -276,7 +277,7 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
     }
 
 
-    /* -----------------------------------------------------------------------*/
+    /* ----------------------------------------------------------------------- */
 
     /**
      * Return the TOC or INLINETOC rendered to XHTML
