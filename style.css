@@ -1,6 +1,12 @@
 /*
  * Heading PreProcessor plugin for DokuWiki
  */
+
+code.preview_note { /* for preview note displayed in toc box */
+  font: 80% monospace;
+  color: pink;
+}
+
 #dw__toc.width18 {
     width: 18em;
 }

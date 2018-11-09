@@ -151,8 +151,8 @@ class syntax_plugin_headings_embeddedtoc extends DokuWiki_Syntax_Plugin {
 
                 $html = '<!-- EMBEDDED TOC START -->'.DOKU_LF;
                 $html.= '<div '.buildAttributes($attr).'>'.DOKU_LF;
+                $html.= $note ? '<code class="preview_note">'.hsc($note).'</code>'.DOKU_LF : '';
                 $html.= $title ? '<h3>'.hsc($title).'</h3>'.DOKU_LF : '';
-                $html.= $note ? '<code style="font-size:80%">'.hsc($note).'</code>'.DOKU_LF : '';
                 $html.= '<div>'.DOKU_LF;
                 $html.= empty($toc)
                         ? 'nothing to show'
