@@ -15,14 +15,30 @@ The hid may be convenient to create section links with shorter name, especially 
 
 #### Dispaly Table of Contents (TOC)
 
-    {{TOC}}       or {{!TOC}}            DW built-in TOC box
-    {{INLINETOC}} or {{!INLINETOC}}      Headline list in rounded box
-    
-    {{TOC 2-4}}          Headlines within level 2 to 3 will appear in the TOC box
-    {{INLINETOC 1-3}}
+Change the place where the DokuWiki built-in Auto TOC is displayed in the page.
 
-* Heading level parameter (*n-m*) to be shown in the TOC box
+    {{TOC}} or {{CLOSED_TOC}}      placeholder for DW built-in auto TOC box
+    {{INLINETOC}}                  a design variant of auto TOC
+    
+    {{TOC 2-4}}          Headlines within level 2 to 4 will appear in the TOC box
+    {{CLOSED_INLINETOC 1-5 | Page Index}}         put custom title to the TOC
+
+* The placeholder must be one in the page
+* Heading level parameter (*n-m*) controls TOC items
+* The text after "|" is used as TOC box title, if empty title removed
+
+#### Embeddng TOC
+
+Render the TOC box as a part of page contents, instead of display.
+
+    {{!TOC 1-2}}              embedded TOC box example
+    {{!INLINETOC |}}          a design variant
+    {{!SIDETOC}}              dedicated to use in sidebar page
+    
+    {{!TOC 2-2 wide > start | top page index}}  show list of headings of the other page
+
 * "!" means embedding the TOC, which consists the page and printable
+
 
 ----
 
