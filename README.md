@@ -1,19 +1,29 @@
 # Heading PreProcessor plugin for DokuWiki
 
-A xhtml renderer alternative which enables *persistent* **hid**, it won't be affected by any later changes of heading title.
+A xhtml renderer alternative which enables *persistent* **Hid**, it won't be affected by any later changes of heading title.
 
 Note: You need first to change the [renderer_xhtml](https://www.dokuwiki.org/config:renderer_xhtml) parameter in advanced settings.
 
 
-#### Persistent hid
+## Persistent Hid
 
     ====== hid | Longer heading title ======   // Level 1 headline
     ====== hid | ======                        // empty headline
 
-The hid may be convenient to create section links with shorter name, especially for longer title headings. The hid is also available to inclued the section using [Include plugin](https://www.dokuwiki.org/plugin:include).
+The Hid may be convenient to create section links with shorter name, especially for longer title headings. The hid is also available to inclued the section using [Include plugin](https://www.dokuwiki.org/plugin:include).
+
+## Formatted heading text
+
+Formatting syntax is available in the heading text if config **header_formatting** is on.
+
+    ====  [Fe(CN)<sub>6</sub>]<sup>3-</sup> ====  // Hid: fe_cn_6_3, Plain Title: [Fe(CN)6]3-
 
 
-#### Dispaly Table of Contents (TOC)
+## Control Table of Contents (TOC)
+
+Set **tocDisplay** config option appropriately to enable this feature.
+
+### Dispaly TOC
 
 Change the place where the DokuWiki built-in Auto TOC is displayed in the page.
 
@@ -27,7 +37,7 @@ Change the place where the DokuWiki built-in Auto TOC is displayed in the page.
 * Heading level parameter (*n-m*) controls TOC items
 * The text after "|" is used as TOC box title, if empty title removed
 
-#### Embeddng TOC
+### Embeddng TOC
 
 Render the TOC box as a part of page contents, instead of display.
 
