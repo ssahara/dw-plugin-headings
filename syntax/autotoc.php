@@ -29,7 +29,7 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
 
         // syntax pattern
         $this->pattern[0] = '~~(?:NO|CLOSE)?TOC\b.*?~~';
-        $this->pattern[1] = '{{(?:CLOSED_)?(?:INLINETOC|TOC)\b.*?}}';
+        $this->pattern[1] = '{{(?:CLOSED_)?(?:INLINE)?TOC\b.*?}}';
     }
 
     function connectTo($mode) {
@@ -74,7 +74,6 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
 
         } else { // type 1
             // DokiWiki original TOC or alternative INLINETOC
-            // PLACEHOLDER を出力して、TPL_CONTENT_DISPLAY イベントで置き換える
 
             if (substr($name, 0, 6) == 'CLOSED') {
                 $tocProps['state'] = -1;
@@ -98,43 +97,40 @@ class syntax_plugin_headings_autotoc extends DokuWiki_Syntax_Plugin {
         switch ($format) {
             case 'metadata':
                 global $ID;
-                // ページのTOCの見せ方（表示位置は除く）は、自身のページ内で決定する
                 if ($id !== $ID) return false; // ignore instructions for other page
 
                 // store into matadata storage
                 $metadata =& $renderer->meta['plugin'][$this->getPluginName()];
 
                 // add only new key-value pairs, keep already stored data
-                // 先に出現した構文による設定が優先権をもつ
-                $tocProps = ($metadata['toc'] ?? []) + (array) $props;
-
-                $metadata['toc'] = $tocProps;
+                if (in_array($props['display'], ['toc','inlinetoc'])) {
+                    if (!isset($metadata['toc']['display'])) {
+                        $metadata['toc'] = $props;
+                    }
+                }
                 return true;
 
             case 'xhtml':
                 global $INFO, $ACT;
                 static $counts; // count toc placeholders appeared in the page
 
-                // 他ページに設置された {{TOC}} or {{INLINEOC}} も考慮する
-                // ただし、~~NOTOC~~ or ~~CLOSETOC~~ は無視する
-                if ( ($props['display'] ?? '') == 'none' ) {
-                    return false;
-                }
-
                 // render PLACEHOLDER, which will be replaced later
                 // through action TPL_CONTENT_DISPLAY event handler
-                if (!isset($counts[$id])) {
-                    $tocName = $props['display'];
-                    $counts[$id] = 0;
-                } else {
-                    $tocName = $props['display'].(++$counts[$id]);
-                }
+                if (in_array($props['display'], ['toc','inlinetoc'])) {
+                    if (!isset($counts[$id])) {
+                        $tocName = $props['display'];
+                        $counts[$id] = 0;
+                    } else {
+                        $tocName = $props['display'].(++$counts[$id]);
+                    }
+                } else return false;
 
                 if ($ACT == 'preview') {
                     $state = $props['state'] ? 'CLOSED_' : '';
                     $range = $props['toptoclevel'].'-'.$props['maxtoclevel'];
+                    $note = '<!-- '.$state.strtoupper($tocName).'_HERE '.$range.' -->';
                     $renderer->doc .= '<code class="preveiw_note">';
-                    $renderer->doc .= hsc('<!-- '.$state.strtoupper($tocName).'_HERE '.$range.' -->');
+                    $renderer->doc .= hsc($note);
                     $renderer->doc .= '</code>'.DOKU_LF;
                 }
                 $renderer->doc .= '<!-- '.strtoupper($tocName).'_HERE -->'.DOKU_LF;
