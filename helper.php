@@ -92,8 +92,8 @@ class helper_plugin_headings extends DokuWiki_Plugin {
      */
     function toc_filter(array $toc, $topLv=null, $maxLv=null, $start_hid='', $depth=5) {
         global $conf;
-        $toptoclevel = empty($topLv) ? $this->getConf('toptoclevel') : $tocLv;
-        $maxtoclevel = empty($maxLv) ? $this->getConf('maxtoclevel') : $maxLv;
+        $toptoclevel = $topLv ?? $conf['toptoclevel'];
+        $maxtoclevel = $maxLv ?? $conf['maxtoclevel'];
 
         // first step: get headings starting specified hid and its sub-sections
         if ($start_hid) {
