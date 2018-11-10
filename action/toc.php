@@ -180,9 +180,6 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
         // retrieve toc parameters from metadata storage
         $metadata =& $INFO['meta']['plugin'][$this->getPluginName()];
         $tocDisplay  = $metadata['toc']['display'] ?? $this->getConf('tocDisplay');
-        $toptoclevel = $metadata['toc']['toptoclevel'] ?? $conf['toptoclevel'];
-        $maxtoclevel = $metadata['toc']['maxtoclevel'] ?? $conf['maxtoclevel'];
-        $tocminheads = $conf['tocminheads'];
 
         if ($event->name == 'TPL_TOC_RENDER') {
             if ($tocDisplay != 'top') {
@@ -199,17 +196,19 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
         $toc = $INFO['meta']['description']['tableofcontents'] ?? [];
         $notoc = !($INFO['meta']['internal']['toc']); // true if toc should not be displayed
 
-        foreach ($toc as $k => $item) {
-            if (empty($item['title'])
-                || ($item['level'] < $toptoclevel)
-                || ($item['level'] > $maxtoclevel)
-            ) {
-                unset($toc[$k]);
-            }
-            $item['level'] = $item['level'] - $toptoclevel +1;
-        }
-        if ( $notoc || ($tocminheads == 0) || (count($toc) < $tocminheads) ) {
+        if ($notoc || $conf['tocminheads'] == 0) {
             $toc = [];
+        } else {
+            // load helper object
+            isset($tocTweak) || $tocTweak = $this->loadHelper($this->getPluginName());
+
+            $toptoclevel = $metadata['toc']['toptoclevel'];
+            $maxtoclevel = $metadata['toc']['maxtoclevel'];
+            $toc = $tocTweak->toc_filter($toc, $toptoclevel, $maxtoclevel);
+
+            if (count($toc) < $conf['tocminheads']) {
+                $toc = [];
+            }
         }
 
         switch ($event->name) {
@@ -245,17 +244,16 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
 
         // retrieve toc parameters from metadata storage
         $metadata =& $INFO['meta']['plugin'][$this->getPluginName()];
-        $tocProps = $metadata['toc'];
+        $tocProps = $metadata['toc'] ?? [];
 
         // return if no placeholder has rendered
         if(!isset($tocProps['display'])) return;
         if(!in_array($tocProps['display'], ['toc','inlinetoc'])) return;
 
         // placeholder
-        $tocDisplay = $tocProps['display'] ?? 'toc';
-        $search = '<!-- '.strtoupper($tocDisplay).'_HERE -->';
+        $search = '<!-- '.strtoupper($tocProps['display']).'_HERE -->';
 
-        // prepare html of table of content
+        // prepare html of table of content (call TPL_TOC_RENDER event handler)
         $html_toc = $this->tpl_toc($event);
 
         // replace PLACEHOLDER with html of table of content
@@ -265,8 +263,8 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
 
         // debug
         if ($count == 0 || $count > 1) {
-            $debug = strtoupper(get_class($this)).' '.$event->name;
-            $debug.= ' placeholder '.$search.' replaced '.$count.' times in '.$INFO['id'];
+            $debug = $event->name.': ';
+            $debug.= 'placeholder '.$search.' replaced '.$count.' times in '.$INFO['id'];
             error_log($debug);
             if ($ACT == 'preview') msg($debug, -1);
             return;
