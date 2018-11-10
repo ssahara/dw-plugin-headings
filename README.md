@@ -23,9 +23,9 @@ Formatting syntax is available in the heading text if config **header_formatting
 
 Set **tocDisplay** config option appropriately to enable this feature.
 
-### Dispaly TOC
+### Display Auto TOC
 
-Change the place where the DokuWiki built-in Auto TOC is displayed in the page.
+Display the DokuWiki built-in Auto TOC at other place than top right corner.
 
     {{TOC}} or {{CLOSED_TOC}}      placeholder for DW built-in auto TOC box
     {{INLINETOC}}                  a design variant of auto TOC
