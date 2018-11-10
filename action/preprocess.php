@@ -45,7 +45,6 @@ class action_plugin_headings_preprocess extends DokuWiki_Action_Plugin {
         $headings = $metadata['tableofcontents'];
         if (!isset($headings)) return;
 
-        // handler で生成した headings を tableofcontents 互換の toc データベースに変換する
         $headers0 = []; // memory once used hid (title0)
         $headers1 = []; // memory once used hid (new hid)
 
@@ -55,7 +54,6 @@ class action_plugin_headings_preprocess extends DokuWiki_Action_Plugin {
             //          'level' => $level, 'title0' => $title0,
             //          'title' => $title, 'xhtml' => $xhtml, 'hid' => $hid,
             //         ];
-            // $item を直接更新する
             $item['hid']  = sectionID($item['hid'], $headers1);
             $item['hid0'] = sectionID($item['title0'], $headers0);
             $item['type'] = 'ul';

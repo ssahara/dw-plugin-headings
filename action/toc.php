@@ -26,7 +26,7 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
         }
         if ($this->getConf('tocDisplay') != 'disabled') {
             $controller->register_hook(
-                'PARSER_CACHE_USE', 'BEFORE', $this, 'handleParserCache', []
+                'PARSER_CACHE_USE', 'BEFORE', $this, '_handleParserCache', []
             );
             $controller->register_hook(
                 'PARSER_METADATA_RENDER', 'AFTER', $this, 'find_TocPosition', []
@@ -76,8 +76,10 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
      * PARSER_CACHE_USE event handler
      *
      * Manipulate cache validity (to get correct toc of other page)
+     * When Embedded TOC should refer to other page, check dependency
+     * to get correct toc items from relevant .meta files
      */
-    function handleParserCache(Doku_Event $event) {
+    function _handleParserCache(Doku_Event $event) {
         $cache =& $event->data;
         if (!$cache->page) return;
 
@@ -103,19 +105,16 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
      * PARSER_METADATA_RENDER event handler
      *
      * Find toc box position in accordance with tocDisplay config
-     * 直後にTOCを表示する見だしをtableofcontentsから探す（空見だしも対象）
+     * if relevant heading (including empty heading) found in tableofcontents
+     * store it's hid0 into metadata storage, which will be used xhtml renderer
+     * to prepare placeholder for auto-TOC to be replaced in TPL_CONTENT_DISPLAY
+     * event handler
      */
     function find_TocPosition(Doku_Event $event) {
         global $ID, $conf;
 
         $tocDisplay = $this->getConf('tocDisplay');
         if(!in_array($tocDisplay, ['0','1','2'])) return;
-
-        // retrieve toc parameters from metadata storage
-        $metadata =& $event->data['current']['plugin'][$this->getPluginName()];
-
-        // toc will be rendered by {{TOC|INLINETOC}}
-        if(isset($metadata['toc']['display'])) return;
 
         // auto toc disabled by ~~NOTOC~~ or tocminheads config setting
         $notoc = !$event->data['current']['internal']['toc'];
@@ -125,12 +124,13 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
         $toc =& $event->data['current']['description']['tableofcontents'];
         if(!isset($toc) || empty($toc)) return;
 
-        // now worth to seek potential toc box position from tableofcontents
-        // 直後にTOCを表示する見だしの識別ID hid0を探す（空見だしも対象）
-        // xhtml_rendererの headerメソッドは、title0 を引数とするため、
-        // アクセスには title0ベースの 識別ID hid0 が有用
+        // retrieve toc parameters from metadata storage
+        $metadata =& $event->data['current']['plugin'][$this->getPluginName()];
 
-        $toc_hid0 = '';
+        // toc will be rendered by {{TOC|INLINETOC}}
+        if(isset($metadata['toc']['display'])) return;
+
+        // now worth to seek potential toc box position from tableofcontents
         switch ($tocDisplay) {
             case '0': // after the First any level heading
                 $toc_hid0 = $toc[0]['hid0'];
@@ -144,11 +144,12 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
                     }
                 }
                 break;
+            default:
+                $toc_hid0 = '';
         } // end of switch
 
-        // store toc_hid0 into matadata storage
+        // store toc_hid0 into matadata storage for xhtml renderer
         if ($toc_hid0) {
-            // xhtml renderer側で <!-- TOC_HERE --> をセットする
             $metadata['toc']['display'] = 'toc';
             $metadata['toc']['hid'] = $toc_hid0;
         }
@@ -237,7 +238,6 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
      */
     function show_HtmlToc(Doku_Event $event) {
         global $INFO, $ID, $ACT;
-        $debug = strtoupper(get_class($this)).' '.$event->name;  //デバッグ用
 
         if (!in_array($ACT, ['show', 'preview'])) {
             return;
@@ -248,18 +248,12 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
         $tocProps = $metadata['toc'];
 
         // return if no placeholder has rendered
-        if (!isset($tocProps['display']) || ($tocProps['display'] == 'none')) {
-            return;
-        }
+        if(!isset($tocProps['display'])) return;
+        if(!in_array($tocProps['display'], ['toc','inlinetoc'])) return;
 
-        $tocDisplay = $tocProps['display'] ?? 'toc'; // 未設定時は標準TOC
-
+        // placeholder
+        $tocDisplay = $tocProps['display'] ?? 'toc';
         $search = '<!-- '.strtoupper($tocDisplay).'_HERE -->';
-
-        if (strpos($event->data, $search) === false) {
-            error_log($debug.' ACT='.$ACT.' placeholder '.$search.' not found in page '.$INFO['id']);
-            return;
-        }
 
         // prepare html of table of content
         $html_toc = $this->tpl_toc($event);
@@ -269,9 +263,13 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
         $replace = $html_toc;
         $content = str_replace($search, $replace, $content, $count);
 
-        if ($count > 1) {
-            error_log(' '.$s.' '.$event->name.'  wrong? count='.$count.' > 1 in page '.$ID);
-            return; // something wrong?, toc must appear once in the page
+        // debug
+        if ($count == 0 || $count > 1) {
+            $debug = strtoupper(get_class($this)).' '.$event->name;
+            $debug.= ' placeholder '.$search.' replaced '.$count.' times in '.$INFO['id'];
+            error_log($debug);
+            if ($ACT == 'preview') msg($debug, -1);
+            return;
         }
         $event->data = $content;
     }
@@ -281,6 +279,7 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
 
     /**
      * Return the TOC or INLINETOC rendered to XHTML
+     * called from TPL_TOC_RENDER event handler
      */
     private function html_TOC(array $toc, array $tocProps=[]) {
 
@@ -290,19 +289,11 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
         }
         if(!count($toc)) return '';
 
-            /*
-                    'display'     => $tocDisplay, // TOC box PlaceHolder名or表示位置
-                    'state'       => $tocState,   // TOC box 開閉状態 -1:close
-                    'toptoclevel' => $topLv,      // TOC 見だし範囲の上位レベル
-                    'maxtoclevel' => $maxLv,      // TOC 見だし範囲の下位レベル
-                    'class'       => $tocClass,   // TOC box 微調整用CSSクラス名
-            */
-
             global $lang;
 
             // toc properties
             $tocTitle   = $tocProps['title'] ?? $lang['toc'];
-            $tocDisplay = $tocProps['display'] ?? 'toc'; // 未設定時は標準TOC
+            $tocDisplay = $tocProps['display'] ?? 'toc';
             switch ($tocDisplay) {
                 case 'none':
                     return '';
