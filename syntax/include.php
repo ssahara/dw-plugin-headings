@@ -29,8 +29,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         $this->pattern[3] = '{{INCLUDE\b.+?}}';  // {{INCLUDE [flags] >[id]#[section]}}
         $this->pattern[4] = '{{page>.+?}}';      // {{page>[id]&[flags]}}
         $this->pattern[5] = '{{section>.+?}}';   // {{section>[id]#[section]&[flags]}}
-     // $this->pattern[6] = '{{namespace>.+?}}';
-     // $this->pattern[7] = '{{tagtopic>.+?}}';
+     // $this->pattern[6] = '{{namespace>.+?}}'; // {{namespace>[namespace]#[section]&[flags]}}
+     // $this->pattern[7] = '{{tagtopic>.+?}}';  // {{tagtopic>[tag]&[flags]}}
     }
 
     function connectTo($mode) {
@@ -47,12 +47,13 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
     function handle($match, $state, $pos, Doku_Handler $handler) {
         global $ID;
 
-        $param = substr($match, 2, -2);
-        if (substr($param, 0, 7) == 'INCLUDE') {
-            [$flags, $page] = array_map('trim', explode('>', substr($param,7), 2));
+        if (substr($match, 2, 7) == 'INCLUDE') {
+            // use case {{INCLUDE [flags] >[id]#[section]}}
+            [$flags, $page] = array_map('trim', explode('>', substr($match, 9, -2), 2));
             [$page, $sect] = explode('#', $page, 2);
             $flags = explode(' ', $flags);
         } else {
+            // use case {{section>[id]#[section]&[flags]}}
             [$param, $flags] = explode('&', substr($match, 2, -2), 2);
             [$mode, $page, $sect] = preg_split('/>|#/u', $param, 3);
             $flags = explode('&', $flags);
@@ -74,9 +75,10 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         }
 
         $plugin = substr(get_class($this), 14);
-        $data = [$match, $hid0, $check];
+        $data = [$match, $check, $hid0];
         $handler->addPluginCall($plugin, $data, $state,$pos,$match);
 
+        // do not call include_include when page or section not exist
         if (array_product($check) == 0) {
             return false;
         }
@@ -96,7 +98,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
     function render($format, Doku_Renderer $renderer, $data) {
         global $ACT;
 
-        [$match, $hid0, $check] = $data;
+        [$match, $check, $hid0] = $data;
 
         if ($format == 'xhtml') {
             if ($ACT == 'preview') {
