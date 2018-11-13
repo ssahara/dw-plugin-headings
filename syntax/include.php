@@ -70,12 +70,12 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
 
         if (isset($toc) && $sect) {
              $map = array_column($toc, null, 'hid');
-             $hid0 = $map[$sect]['hid0'] ?? null;
-             $check['sect'] = isset($hid0);
+             $hid = $map[$sect]['hid'] ?? null;
+             $check['sect'] = isset($hid);
         }
 
         $plugin = substr(get_class($this), 14);
-        $data = [$match, $check, $hid0];
+        $data = [$match, $check, $page, $hid];
         $handler->addPluginCall($plugin, $data, $state,$pos,$match);
 
         // do not call include_include when page or section not exist
@@ -86,7 +86,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         // instruction to call include plugin syntax component
         $plugin = 'include_include';
         $level = null;
-        $data = [$mode, $page, $hid0, (array) $flags, $level, $pos];
+        $data = [$mode, $page, $hid, (array) $flags, $level, $pos];
         $handler->addPluginCall($plugin, $data, $state,$pos,$match);
 
         return false;
@@ -96,17 +96,19 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      * Create output
      */
     function render($format, Doku_Renderer $renderer, $data) {
-        global $ACT;
+        global $ACT, $ID;
 
-        [$match, $check, $hid0] = $data;
+        [$match, $check, $page, $hid] = $data;
 
         if ($format == 'xhtml') {
             if ($ACT == 'preview') {
                 $note = '';
                 if (isset($check['sect']) && !$check['sect']) {
-                    $note = '! section not found';
+                    $note = 'section not found!';
                 } elseif (isset($check['page']) && !$check['page']) {
-                    $note = '! page not found';
+                    $note = 'page not found!';
+                } elseif (isset($check['page']) && $page == $ID) {
+                    $note = 'self page inclusion!';
                 } elseif ($hid0) {
                     $note = '(#'.$hid0.')';
                 }
