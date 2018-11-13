@@ -106,7 +106,7 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
      *
      * Find toc box position in accordance with tocDisplay config
      * if relevant heading (including empty heading) found in tableofcontents
-     * store it's hid0 into metadata storage, which will be used xhtml renderer
+     * store it's hid into metadata storage, which will be used xhtml renderer
      * to prepare placeholder for auto-TOC to be replaced in TPL_CONTENT_DISPLAY
      * event handler
      */
@@ -133,25 +133,25 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
         // now worth to seek potential toc box position from tableofcontents
         switch ($tocDisplay) {
             case '0': // after the First any level heading
-                $toc_hid0 = $toc[0]['hid0'];
+                $toc_hid = $toc[0]['hid'];
                 break;
             case '1': // after the First Level 1 heading
             case '2': // after the First Level 2 heading
                 foreach ($toc as $k => $item) {
                     if ($item['level'] == $tocDisplay) {
-                        $toc_hid0 = $item['hid0'];
+                        $toc_hid = $item['hid'];
                         break;
                     }
                 }
                 break;
             default:
-                $toc_hid0 = '';
+                $toc_hid = '';
         } // end of switch
 
-        // store toc_hid0 into matadata storage for xhtml renderer
-        if ($toc_hid0) {
+        // store toc_hid into matadata storage for xhtml renderer
+        if ($toc_hid) {
             $metadata['toc']['display'] = 'toc';
-            $metadata['toc']['hid'] = $toc_hid0;
+            $metadata['toc']['hid'] = $toc_hid;
         }
     }
 

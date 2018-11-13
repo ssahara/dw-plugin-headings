@@ -49,24 +49,23 @@ class syntax_plugin_headings_preprocess extends DokuWiki_Syntax_Plugin {
 
         // speparate param from headings text
         if (strpos($text, '|') !== false) {
-            [$param, $title0] = array_map('trim', explode('|', $text, 2));
+            [$param, $title] = array_map('trim', explode('|', $text, 2));
         } else {
             $param = '';
-            $title0 = trim($text);
+            $title = trim($text);
         }
 
         // pre-processing the heading text
         // NOTE: common plugin function render_text()
         // output text string through the parser, allows DokuWiki markup to be used
-        if ($title0 && $this->getConf('header_formatting')) {
-            $xhtml = $this->render_text($title0);
+        if ($title && $this->getConf('header_formatting')) {
+            $xhtml = $this->render_text($title);
             $xhtml = substr($xhtml, 5, -6); // drop p tag and \n
             $xhtml = preg_replace('#<a\b.*?>(.*?)</a>#', '${1}', $xhtml);
             $title = htmlspecialchars_decode(strip_tags($xhtml), ENT_QUOTES);
             $title = str_replace(DOKU_LF, '', $title); // remove any linebreak
         } else {
             $xhtml = '';
-            $title = $title0;
         }
 
         // param processing: user defined hid, shorter than title, independ from title change
@@ -78,7 +77,7 @@ class syntax_plugin_headings_preprocess extends DokuWiki_Syntax_Plugin {
 
         // call render method of this plugin
         $plugin = substr(get_class($this), 14);
-        $data = [$ID, $pos, $level, $title0, $hid, $title, $xhtml];
+        $data = [$ID, $pos, $level, $hid, $title, $xhtml];
         $handler->addPluginCall($plugin, $data, $state,$pos,$match);
 
         return false;
@@ -92,14 +91,14 @@ class syntax_plugin_headings_preprocess extends DokuWiki_Syntax_Plugin {
         // create headings metadata that is compatible with
         // $renderer->meta['description']['tableofcontents']
         if ($format == 'metadata') {
-            [$page, $pos, $level, $title0, $hid, $title, $xhtml] = $data;
+            [$page, $pos, $level, $hid, $title, $xhtml] = $data;
 
             // store into matadata storage
             $metadata =& $renderer->meta['plugin'][$this->getPluginName()];
             $metadata['tableofcontents'][] = [
                     'page' => $page, 'pos' => $pos,
-                    'level' => $level, 'title0' => $title0,
-                    'title' => $title, 'xhtml' => $xhtml, 'hid' => $hid,
+                    'level' => $level, 'hid' => $hid,
+                    'title' => $title, 'xhtml' => $xhtml,
             ];
         }
     }

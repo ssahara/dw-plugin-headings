@@ -46,8 +46,8 @@ class action_plugin_headings_preprocess extends DokuWiki_Action_Plugin {
         foreach ($instructions as $k => &$instruction) {
             if ($instruction[0] == 'header') {
                 [$hid, $level, $pos] = $instruction[1];
-                $title = $instructions[$k+2][1][1][5];
-                $xhtml = $instructions[$k+2][1][1][6];
+                $title = $instructions[$k+2][1][1][4];
+                $xhtml = $instructions[$k+2][1][1][5];
                 $instruction[1] = [$hid, $level, $pos, $title, $xhtml];
             }
         }
@@ -70,17 +70,15 @@ class action_plugin_headings_preprocess extends DokuWiki_Action_Plugin {
         $headings = $metadata['tableofcontents'];
         if (!isset($headings)) return;
 
-        $headers0 = []; // memory once used hid (title0)
-        $headers1 = []; // memory once used hid (new hid)
+        $headers = []; // memory once used hid
 
         foreach ($headings as &$item) {
             // $item = [
             //          'page' => $page, 'pos' => $pos,
-            //          'level' => $level, 'title0' => $title0,
-            //          'title' => $title, 'xhtml' => $xhtml, 'hid' => $hid,
+            //          'level' => $level, 'hid' => $hid,
+            //          'title' => $title, 'xhtml' => $xhtml,
             //         ];
-            $item['hid']  = sectionID($item['hid'], $headers1);
-            $item['hid0'] = sectionID($item['title0'], $headers0);
+            $item['hid']  = sectionID($item['hid'], $headers);
             $item['type'] = 'ul';
         }
         unset($item);
