@@ -13,6 +13,7 @@ if(!defined('DOKU_INC')) die();
 class syntax_plugin_headings_preprocess extends DokuWiki_Syntax_Plugin {
 
     function getType() { return 'baseonly'; }
+    function getPType(){ return 'block'; }
     function getSort() { return 45; }
 
     /**
@@ -72,12 +73,12 @@ class syntax_plugin_headings_preprocess extends DokuWiki_Syntax_Plugin {
         $hid = $param ?: $title;
 
         // call header method of Doku_Handler class
-        $match = $markup . $title0 . $markup;
+        $match = $markup . $hid . $markup;
         $handler->header($match, $state, $pos);
 
         // call render method of this plugin
         $plugin = substr(get_class($this), 14);
-        $data = [$ID, $pos, $level, $title0, $hid, $title, $xhtml, $hid];
+        $data = [$ID, $pos, $level, $title0, $hid, $title, $xhtml];
         $handler->addPluginCall($plugin, $data, $state,$pos,$match);
 
         return false;
@@ -91,7 +92,7 @@ class syntax_plugin_headings_preprocess extends DokuWiki_Syntax_Plugin {
         // create headings metadata that is compatible with
         // $renderer->meta['description']['tableofcontents']
         if ($format == 'metadata') {
-            [$page, $pos, $level, $title0, $hid, $title, $xhtml, $hid] = $data;
+            [$page, $pos, $level, $title0, $hid, $title, $xhtml] = $data;
 
             // store into matadata storage
             $metadata =& $renderer->meta['plugin'][$this->getPluginName()];
