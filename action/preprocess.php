@@ -18,6 +18,9 @@ class action_plugin_headings_preprocess extends DokuWiki_Action_Plugin {
     function register(Doku_Event_Handler $controller) {
         always: { // event handler hook must be executed "earlier" than default
             $controller->register_hook(
+               'PARSER_HANDLER_DONE', 'BEFORE', $this, 'rewrite_header_instructions', []
+            );
+            $controller->register_hook(
                 'PARSER_METADATA_RENDER', 'AFTER', $this, 'extend_TableOfContents', [], -100
             );
         }
@@ -28,6 +31,28 @@ class action_plugin_headings_preprocess extends DokuWiki_Action_Plugin {
         }
     }
 
+
+
+    /**
+     * PARSER_HANDLER_DONE event handler
+     * 
+     * Rewrite header instructions
+     */
+    function rewrite_header_instructions(Doku_Event $event) {
+        global $ID;
+
+        $instructions =& $event->data->calls;
+
+        foreach ($instructions as $k => &$instruction) {
+            if ($instruction[0] == 'header') {
+                [$hid, $level, $pos] = $instruction[1];
+                $title = $instructions[$k+2][1][1][5];
+                $xhtml = $instructions[$k+2][1][1][6];
+                $instruction[1] = [$hid, $level, $pos, $title, $xhtml];
+            }
+        }
+        unset($instruction);
+    }
 
     /**
      * PARSER_METADATA_RENDER event handler
