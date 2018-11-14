@@ -60,13 +60,17 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
      */
     function header($hid, $level, $pos, $title=null, $xhtml=null) {
         global $ACT, $INFO, $ID, $conf;
-        $debug = strtoupper(get_class($this));  //デバッグ用
 
         /*
          * EXPERIMENTAL: Render a formatted heading
          */
         // creates a linkid from a heading
+        $hid1 = sectionID($hid, $check = false);
         $hid = $this->_headerToLink($hid, true); // ensure unique hid
+        if ($hid != $hid1) {
+            $debug = strtoupper(get_class($this));
+            error_log($debug.' : duplicated hid ('.$hid1.') found in '.$ID);
+        }
 
 
         // write anchor for empty or hidden/unvisible headings
