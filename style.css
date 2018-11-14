@@ -3,7 +3,7 @@
  */
 
 code.preview_note { /* for preview note displayed in toc box */
-  font: 80% monospace;
+  box-shadow: none;
   color: pink;
 }
 
