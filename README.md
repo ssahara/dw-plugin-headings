@@ -10,7 +10,7 @@ Note: You need first to change the [renderer_xhtml](https://www.dokuwiki.org/con
     ====== hid | Longer heading title ======   // Level 1 headline
     ====== hid | ======                        // empty headline
 
-The Hid may be convenient to create section links with shorter name, especially for longer title headings. The hid is also available to inclued the section using [Include plugin](https://www.dokuwiki.org/plugin:include).
+The Hid may be convenient to create section links with shorter name `[#hid]`, especially for longer title headings.  Additionally, a bundled wrapper syntax component for [Include plugin](https://www.dokuwiki.org/plugin:include) can recognize hid that correspond to section id found in the other page to be included at where e.g. `{{section>somepage#hid}}` placed.
 
 ## Formatted heading text
 
