@@ -59,11 +59,16 @@ class syntax_plugin_headings_preprocess extends DokuWiki_Syntax_Plugin {
         // NOTE: common plugin function render_text()
         // output text string through the parser, allows DokuWiki markup to be used
         if ($title && $this->getConf('header_formatting')) {
-            $xhtml = $this->render_text($title);
-            $xhtml = substr($xhtml, 5, -6); // drop p tag and \n
-            $xhtml = preg_replace('#<a\b.*?>(.*?)</a>#', '${1}', $xhtml);
-            $title = htmlspecialchars_decode(strip_tags($xhtml), ENT_QUOTES);
-            $title = str_replace(DOKU_LF, '', $title); // remove any linebreak
+            $xhtml = trim($this->render_text($title));
+            if (substr($xhtml, 0, 4) == "<p>\n") {
+                $xhtml = strstr( substr($xhtml,4), "\n</p>", true);
+                $xhtml = preg_replace('#<a\b.*?>(.*?)</a>#', '${1}', $xhtml);
+                $newtitle = htmlspecialchars_decode(strip_tags($xhtml), ENT_QUOTES);
+                $newtitle = str_replace(DOKU_LF, '', $newtitle); // remove any linebreak
+                $title = $newtitle ?: $title;
+            } else {
+                $xhtml = hsc($title);
+            }
         } else {
             $xhtml = '';
         }
