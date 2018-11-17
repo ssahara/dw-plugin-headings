@@ -74,6 +74,12 @@ class syntax_plugin_headings_preprocess extends DokuWiki_Syntax_Plugin {
         }
 
         // param processing: user defined hid, shorter than title, independ from title change
+        if ($param[0] == '#' && preg_match('/^#\d*( |$)/', $param)) {
+            [$number, $param] = array_map('trim', explode(' ', substr($param,1), 2));
+            $number = empty($number) ? '' : $number +0;
+        } else {
+            $number = null;
+        }
         $hid = $param ?: $title;
 
         // call header method of Doku_Handler class
