@@ -25,6 +25,7 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
      * Reset protected properties of class Doku_Renderer_xhtml
      */
     function reset() {
+        parent::reset();
         $this->doc = '';
         $this->footnotes = array();
         $this->lastsecid = 0;
