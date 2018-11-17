@@ -58,7 +58,7 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
      * @param int    $level header level
      * @param int    $pos   byte position in the original source
      */
-    function header($hid, $level, $pos, $title=null, $xhtml=null) {
+    function header($hid, $level, $pos, $number=null, $title=null, $xhtml=null) {
         global $ACT, $INFO, $ID, $conf;
 
         /*

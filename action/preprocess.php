@@ -49,9 +49,10 @@ class action_plugin_headings_preprocess extends DokuWiki_Action_Plugin {
         foreach ($instructions as $k => &$instruction) {
             if ($instruction[0] == 'header') {
                 [$hid, $level, $pos] = $instruction[1];
-                $title = $instructions[$k+2][1][1][4];
-                $xhtml = $instructions[$k+2][1][1][5];
-                $instruction[1] = [$hid, $level, $pos, $title, $xhtml];
+                $number = $instructions[$k+2][1][1][3];
+                $title  = $instructions[$k+2][1][1][5];
+                $xhtml  = $instructions[$k+2][1][1][6];
+                $instruction[1] = [$hid, $level, $pos, $number, $title, $xhtml];
             }
         }
         unset($instruction);

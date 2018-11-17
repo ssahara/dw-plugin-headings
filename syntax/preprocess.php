@@ -88,7 +88,7 @@ class syntax_plugin_headings_preprocess extends DokuWiki_Syntax_Plugin {
 
         // call render method of this plugin
         $plugin = substr(get_class($this), 14);
-        $data = [$ID, $pos, $level, $hid, $title, $xhtml];
+        $data = [$ID, $pos, $level, $number, $hid, $title, $xhtml];
         $handler->addPluginCall($plugin, $data, $state,$pos,$match);
 
         return false;
@@ -102,14 +102,14 @@ class syntax_plugin_headings_preprocess extends DokuWiki_Syntax_Plugin {
         // create headings metadata that is compatible with
         // $renderer->meta['description']['tableofcontents']
         if ($format == 'metadata') {
-            [$page, $pos, $level, $hid, $title, $xhtml] = $data;
+            [$page, $pos, $level, $number, $hid, $title, $xhtml] = $data;
 
             // store into matadata storage
             $metadata =& $renderer->meta['plugin'][$this->getPluginName()];
             $metadata['tableofcontents'][] = [
                     'page' => $page, 'pos' => $pos,
-                    'level' => $level, 'hid' => $hid,
-                    'title' => $title, 'xhtml' => $xhtml,
+                    'level' => $level, 'number' => $number,
+                    'hid' => $hid, 'title' => $title, 'xhtml' => $xhtml,
             ];
         }
     }
