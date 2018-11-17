@@ -21,6 +21,9 @@ class action_plugin_headings_preprocess extends DokuWiki_Action_Plugin {
                'PARSER_HANDLER_DONE', 'BEFORE', $this, 'rewrite_header_instructions', []
             );
             $controller->register_hook(
+                'PARSER_METADATA_RENDER', 'BEFORE', $this, 'extend_TableOfContents', ['before']
+            );
+            $controller->register_hook(
                 'PARSER_METADATA_RENDER', 'AFTER', $this, 'extend_TableOfContents', [], -100
             );
         }
@@ -59,8 +62,24 @@ class action_plugin_headings_preprocess extends DokuWiki_Action_Plugin {
      *
      * Extends TableOfContents database that holds All headings
      */
-    function extend_TableOfContents(Doku_Event $event) {
-        global $ID;
+    function extend_TableOfContents(Doku_Event $event, array $param) {
+        global $ID, $conf;
+        static $tocminheads, $toptoclevel, $maxtoclevel;
+
+        isset($tocminheads) || $tocminheads = $conf['tocminheads'];
+        isset($toptoclevel) || $toptoclevel = $conf['toptoclevel'];
+        isset($maxtoclevel) || $maxtoclevel = $conf['maxtoclevel'];
+
+        if ($param[0] == 'before') {
+            $conf['tocminheads'] = 1;
+            $conf['toptoclevel'] = 1;
+            $conf['maxtoclevel'] = 5;
+            return;
+        } else {
+            $conf['tocminheads'] = $tocminheads;
+            $conf['toptoclevel'] = $toptoclevel;
+            $conf['maxtoclevel'] = $maxtoclevel;
+        }
 
         $toc =& $event->data['current']['description']['tableofcontents'];
         if (!isset($toc)) return;
@@ -70,23 +89,37 @@ class action_plugin_headings_preprocess extends DokuWiki_Action_Plugin {
         $headings = $metadata['tableofcontents'];
         if (!isset($headings)) return;
 
+        // original         extended
+        // -------- ------- --------
+        //                   'page'
+        //  'pos'            'pos'
+        //  'level'          'level'   need to replace with original value
+        //  'title' -> hid   'hid'     need to replace with original value
+        //                   'title'
+        //                   'xhtml'
+        //  'type'
+
         $headers = []; // memory once used hid
 
-        foreach ($headings as &$item) {
-            // $item = [
-            //          'page' => $page, 'pos' => $pos,
-            //          'level' => $level, 'hid' => $hid,
-            //          'title' => $title, 'xhtml' => $xhtml,
-            //         ];
-            $item['hid']  = sectionID($item['hid'], $headers);
-            $item['type'] = 'ul';
+        $counts = count($headings);
+        if ($counts == count($toc)) {
+            for ($k = 0; $k < $counts; $k++) {
+             // error_log('  $heading[k]='.var_export($headings[$k],1));
+                $headings[$k]['level'] = $toc[$k]['level'];
+             // $headings[$k]['hid']   = sectionID($item['hid'], $headers);
+                $headings[$k]['hid']   = $toc[$k]['hid'];
+                $headings[$k]['type']  = 'ul';
+            }
+            $toc = $headings; // overwrite tableofcontents
+
+            // remove plugin's metadata
+            unset($metadata['tableofcontents']);
+        } else {
+            $debug = $event->name.': ';
+            $debug.= 'toc counts ('.count($toc).' is not equal to ';
+            $debug.= 'headings counts ('.$counts.') in '.$ID;
+            error_log($debug);
         }
-        unset($item);
-
-        $toc = $headings; // overwrite tableofcontents
-
-        // remove plugin's metadata
-        unset($metadata['tableofcontents']);
     }
 
 
