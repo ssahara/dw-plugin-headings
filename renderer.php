@@ -23,8 +23,10 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
         return true || parent::isSingleton();
     }
 
-
-    protected $headings0 = array(); // memory once used hid
+    /**
+     * Protected properties implemented in this own class
+     */
+    protected $headerCount = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
 
     /**
      * Reset protected properties of class Doku_Renderer_xhtml
@@ -38,7 +40,7 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
         $this->_counter = array();
 
         // properties defined in class renderer_plugin_headings
-        $this->headings0 = array();
+        $this->headerCount = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
     }
 
     /**
@@ -78,6 +80,34 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
             error_log($debug.' : duplicated hid ('.$hid1.') found in '.$ID);
         }
 
+        // add tiered numbers as indexes for hierarchical headings
+        if ($title || isset($number)) {
+            // set header counter for numbering
+            $this->headerCount[$level] = is_numeric($number)
+                ? $number                         // setting 0 is acceptable
+                : $this->headerCount[$level] + 1; // increment counter
+            // reset the number of the subheadings
+            for ($i = $level +1; $i <= 5; $i++) {
+                $this->headerCount[$i] = 0;
+            }
+            // build tiered number ex: 2.1, 1.
+            $tiered_number = '';
+            $startlevel = $this->getConf('numbering_startlevel') ?: 1;
+
+            $tier = $level - $startlevel +1;
+            $tiers = array_slice($this->headerCount, $startlevel -1, $tier);
+            $tiered_number = implode('.', $tiers);
+            if (count($tiers) == 1) {
+                // append always tailing dot for single tiered number
+                $tiered_number .= '.';
+            }
+            // append figure space after tiered number to distinguish title
+            $tiered_number .= ' '; // U+2007 figure space
+            if ($title && isset($number)) {
+                $title = $tiered_number . $title;
+                $xhtml = '<span class="tiered_number">'.$tiered_number.'</span>'.$xhtml;
+            }
+        }
 
         // write anchor for empty or hidden/unvisible headings
         if (empty($title)) {
