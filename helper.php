@@ -132,5 +132,49 @@ class helper_plugin_headings extends DokuWiki_Plugin {
         }
         return $toc;
     }
+
+    /**
+     * hierarchical numbering for toc items
+     * - add tiered numbers as indexes for hierarchical headings
+     */
+    function toc_numbering(array $toc) {
+
+        $headerCount = array_fill(1, 5, 0);
+        $startlevel = $this->getConf('numbering_startlevel') ?: 1;
+ 
+        foreach ($toc as $k => &$item) {
+            $number =& $item['number'];
+            $level  =& $item['level'];
+            $title  =& $item['title'];
+            $xhtml  =& $item['xhtml'];
+
+            if ($title || isset($number)) {
+                // set header counter for numbering
+                $headerCount[$level] = is_numeric($number)
+                    ? $number                   // setting 0 is acceptable
+                    : $headerCount[$level] + 1; // increment counter
+                // reset the number of the subheadings
+                for ($i = $level +1; $i <= 5; $i++) {
+                    $headerCount[$i] = 0;
+                }
+                // build tiered number ex: 2.1, 1.
+                $tier = $level - $startlevel +1;
+                $tiers = array_slice($headerCount, $startlevel -1, $tier);
+                $tiered_number = implode('.', $tiers);
+                if (count($tiers) == 1) {
+                    // append always tailing dot for single tiered number
+                    $tiered_number .= '.';
+                }
+                // append figure space after tiered number to distinguish title
+                $tiered_number .= ' '; // U+2007 figure space
+                if ($title && isset($number)) {
+                    $title = $tiered_number . $title;
+                    $xhtml = '<span class="tiered_number">'.$tiered_number.'</span>'.$xhtml;
+                }
+            }
+        } // end of foreach
+        return $toc;
+    }
+
 }
 

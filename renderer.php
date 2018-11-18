@@ -91,9 +91,7 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
                 $this->headerCount[$i] = 0;
             }
             // build tiered number ex: 2.1, 1.
-            $tiered_number = '';
             $startlevel = $this->getConf('numbering_startlevel') ?: 1;
-
             $tier = $level - $startlevel +1;
             $tiers = array_slice($this->headerCount, $startlevel -1, $tier);
             $tiered_number = implode('.', $tiers);
