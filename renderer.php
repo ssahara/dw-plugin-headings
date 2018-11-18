@@ -18,6 +18,11 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
         return ($format == 'xhtml');
     }
 
+    function isSingleton() {
+        // @see description found in inc/parser/renderer.php
+        return true || parent::isSingleton();
+    }
+
 
     protected $headings0 = array(); // memory once used hid
 
