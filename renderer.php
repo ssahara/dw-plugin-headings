@@ -26,7 +26,16 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
     /**
      * Protected properties implemented in this own class
      */
-    protected $headerCount = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
+    protected $headerCount;
+    protected $firstTierLevel;
+
+    function __construct() {
+     // $this->reset();
+     // $this->headerCount = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
+        $this->headerCount = array_fill(1, 5, 0);
+        $this->firstTierLevel = $this->getConf('numbering_firstTierLevel') ?: 1;
+    }
+
 
     /**
      * Reset protected properties of class Doku_Renderer_xhtml
@@ -40,7 +49,9 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
         $this->_counter = array();
 
         // properties defined in class renderer_plugin_headings
-        $this->headerCount = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
+     // $this->headerCount = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
+        $this->headerCount = array_fill(1, 5, 0);
+        $this->startlevel  = $this->getConf('numbering_startlevel') ?: 1;
     }
 
     /**
@@ -81,19 +92,24 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
         }
 
         // add tiered numbers as indexes for hierarchical headings
+        // Note: numbers may be numeric, string such "A1"
         if ($title || isset($number)) {
+            // set the first tier level if number string starts '!'
+            if ($number[0] == '!') {
+                 $this->firstTierLevel = $level;
+                 $number = substr($number, 1);
+            }
             // set header counter for numbering
-            $this->headerCount[$level] = is_numeric($number)
-                ? $number                         // setting 0 is acceptable
-                : $this->headerCount[$level] + 1; // increment counter
+            $this->headerCount[$level] = empty($number)
+                ? ++$this->headerCount[$level]  // increment counter
+                : $number;
             // reset the number of the subheadings
             for ($i = $level +1; $i <= 5; $i++) {
                 $this->headerCount[$i] = 0;
             }
             // build tiered number ex: 2.1, 1.
-            $startlevel = $this->getConf('numbering_startlevel') ?: 1;
-            $tier = $level - $startlevel +1;
-            $tiers = array_slice($this->headerCount, $startlevel -1, $tier);
+            $tier = $level - $this->firstTierLevel +1;
+            $tiers = array_slice($this->headerCount, $this->firstTierLevel -1, $tier);
             $tiered_number = implode('.', $tiers);
             if (count($tiers) == 1) {
                 // append always tailing dot for single tiered number

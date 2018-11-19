@@ -136,11 +136,14 @@ class helper_plugin_headings extends DokuWiki_Plugin {
     /**
      * hierarchical numbering for toc items
      * - add tiered numbers as indexes for hierarchical headings
+     * Note1: numbers may be numeric, string such "A1"
+     * Note2: #! means set the header level as the first tier of numbering
      */
     function toc_numbering(array $toc) {
 
+     // $headerCount = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
         $headerCount = array_fill(1, 5, 0);
-        $startlevel = $this->getConf('numbering_startlevel') ?: 1;
+        $firstTierLevel = $this->getConf('numbering_firstTierLevel') ?: 1;
  
         foreach ($toc as $k => &$item) {
             $number =& $item['number'];
@@ -149,17 +152,22 @@ class helper_plugin_headings extends DokuWiki_Plugin {
             $xhtml  =& $item['xhtml'];
 
             if ($title || isset($number)) {
+                // set the first tier level if number string starts '!'
+                if ($number[0] == '!') {
+                    $firstTierLevel = $level;
+                    $number = substr($number, 1);
+                }
                 // set header counter for numbering
-                $headerCount[$level] = is_numeric($number)
-                    ? $number                   // setting 0 is acceptable
-                    : $headerCount[$level] + 1; // increment counter
+                $headerCount[$level] = empty($number)
+                    ? ++$headerCount[$level]  // increment counter
+                    : $number;
                 // reset the number of the subheadings
                 for ($i = $level +1; $i <= 5; $i++) {
                     $headerCount[$i] = 0;
                 }
                 // build tiered number ex: 2.1, 1.
-                $tier = $level - $startlevel +1;
-                $tiers = array_slice($headerCount, $startlevel -1, $tier);
+                $tier = $level - $firstTierLevel +1;
+                $tiers = array_slice($headerCount, $firstTierLevel -1, $tier);
                 $tiered_number = implode('.', $tiers);
                 if (count($tiers) == 1) {
                     // append always tailing dot for single tiered number

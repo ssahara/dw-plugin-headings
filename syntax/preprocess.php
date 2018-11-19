@@ -73,17 +73,22 @@ class syntax_plugin_headings_preprocess extends DokuWiki_Syntax_Plugin {
             $xhtml = '';
         }
 
-        // param processing: user defined hid, shorter than title, independ from title change
-        if ($param[0] == '#' && preg_match('/^#\d*( |$)/', $param)) {
-            [$number, $param] = array_map('trim', explode(' ', substr($param,1), 2));
-            $number = empty($number) ? '' : $number +0;
+        // param processing: hierarchical numbering for headings, eg 1.2.3
+        // Note1: numbers may be numeric, or string such "A1"
+        // Note2: #! means set the header level as the first tier of numbering
+        if ($param[0] == '#') {
+            // separate #number part, drop # from number
+            [$number, $param] = explode(' ', substr($param,1), 2);
+            $isFirstTier = ($number[0] == '!') ? true : false;
         } else {
             $number = null;
         }
+
+        // param processing: persistent hid
         $hid = $param ?: $title;
 
         // call header method of Doku_Handler class
-        $match = $markup . $hid . $markup;
+        $match = $markup . (strlen($hid) ? $hid : ' ') . $markup;
         $handler->header($match, $state, $pos);
 
         // call render method of this plugin
