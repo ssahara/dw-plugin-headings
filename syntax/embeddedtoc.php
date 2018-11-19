@@ -124,9 +124,10 @@ class syntax_plugin_headings_embeddedtoc extends DokuWiki_Syntax_Plugin {
                 // load helper object
                 isset($tocTweak) || $tocTweak = $this->loadHelper($this->getPluginName());
 
-                // filter toc items
+                // filter toc items, with toc numbering
                 $topLv = $tocProps['toptoclevel'];
                 $maxLv = $tocProps['maxtoclevel'];
+                $toc = $tocTweak->toc_numbering($toc);
                 $toc = $tocTweak->toc_filter($toc, $topLv, $maxLv, $section);
 
                 // modify toc items directly within loop by reference
