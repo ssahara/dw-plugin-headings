@@ -6,7 +6,9 @@
  * @author     Satoshi Sahara <sahara.satoshi@gmail.com>
  */
 
-$lang['header_formatting'] = 'EXPERIMENTAL: Allow formatting sytnax in header text'; //experimetal
+$lang['header_formatting'] = 'Allow formatting sytnax in header text';
+$lang['numbering_startlevel'] = 'heading level of the first tier for hierarchical numbering';
+
 
 // Extends DokuWiki original Table of Contents (TOC) feature
 $lang['tocDisplay'] = 'Display the auto-TOC box';

@@ -6,7 +6,9 @@
  * @author     Satoshi Sahara <sahara.satoshi@gmail.com>
  */
 
-$lang['header_formatting'] = '【実験的】見出し文字に装飾記法を利用する（"\\\\ " で改行）'; //experimetal
+$lang['header_formatting'] = '見出し文字に装飾記法を利用する（"\\\\ " で改行など）';
+$lang['numbering_firstTierLevel'] = '階層番号の最上位とする見出しレベル';
+
 
 // Extends DokuWiki original Table of Contents (TOC) feature
 $lang['tocDisplay'] = '目次ボックスの配置 (auto-TOC box)';
