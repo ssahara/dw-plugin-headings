@@ -12,11 +12,23 @@ Note: You need first to change the [renderer_xhtml](https://www.dokuwiki.org/con
 
 The Hid may be convenient to create section links with shorter name `[#hid]`, especially for longer title headings.  Additionally, a bundled wrapper syntax component for [Include plugin](https://www.dokuwiki.org/plugin:include) can recognize hid that correspond to section id found in the other page to be included at where e.g. `{{section>somepage#hid}}` placed.
 
+
 ## Formatted heading text
 
 Formatting syntax is available in the heading text if config **header_formatting** is on.
 
     ====  [Fe(CN)<sub>6</sub>]<sup>3-</sup> ====  // Hid: fe_cn_6_3, Plain Title: [Fe(CN)6]3-
+
+
+## Tiered numbers for Headings
+
+All headings are labeled internally with tiered numbers, which will appear when `#` option is used as the first char.  The first tier level can be changed with `#!` option.
+
+    ====== #   | Level 1 headline ======    ->   1. Level 1 headline
+    =====  #5  | Level 2 headline =====     ->   1.5 Level 2 headline
+    ====   #!2 | Level 3 headline ====      ->   2. Level 3 headline
+    
+    ==== #7 hid | Level 3 headline ====     ->   7. Level 3 headline (with persistent hid)
 
 
 ## Control Table of Contents (TOC)
@@ -35,7 +47,7 @@ Display the DokuWiki built-in Auto TOC at other place than top right corner.
 
 * The placeholder must be one in the page
 * Heading level parameter (*n-m*) controls TOC items
-* The text after "|" is used as TOC box title, if empty title removed
+* The text after `|` is used as TOC box title, if empty title removed
 
 ### Embeddng TOC
 
@@ -47,7 +59,7 @@ Render the TOC box as a part of page contents, instead of display.
     
     {{!TOC 2-2 wide > start | top page index}}  show list of headings of the other page
 
-* "!" means embedding the TOC, which consists the page and printable
+* `!` means embedding the TOC, which consists the page and printable
 
 
 ----
