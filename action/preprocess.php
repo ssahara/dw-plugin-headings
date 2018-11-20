@@ -39,20 +39,23 @@ class action_plugin_headings_preprocess extends DokuWiki_Action_Plugin {
     /**
      * PARSER_HANDLER_DONE event handler
      * 
-     * Rewrite header instructions
+     * Propagate extra information to xhtml renderer
      */
     function rewrite_header_instructions(Doku_Event $event) {
         global $ID;
 
         $instructions =& $event->data->calls;
 
+        // rewrite header instructions
         foreach ($instructions as $k => &$instruction) {
             if ($instruction[0] == 'header') {
                 [$hid, $level, $pos] = $instruction[1];
-                $number = $instructions[$k+2][1][1][3];
-                $title  = $instructions[$k+2][1][1][5];
-                $xhtml  = $instructions[$k+2][1][1][6];
-                $instruction[1] = [$hid, $level, $pos, $number, $title, $xhtml];
+                $extra = [
+                    'number' => $instructions[$k+2][1][1][3],
+                    'title'  => $instructions[$k+2][1][1][5],
+                    'xhtml'  => $instructions[$k+2][1][1][6],
+                ];
+                $instruction[1] = [$hid, $level, $pos, $extra];
             }
         }
         unset($instruction);
@@ -117,7 +120,7 @@ class action_plugin_headings_preprocess extends DokuWiki_Action_Plugin {
             unset($metadata['tableofcontents']);
         } else {
             $debug = $event->name.': ';
-            $debug.= 'toc counts ('.count($toc).' is not equal to ';
+            $debug.= 'toc counts ('.count($toc).') is not equal to ';
             $debug.= 'headings counts ('.$counts.') in '.$ID;
             error_log($debug);
         }

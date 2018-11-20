@@ -73,12 +73,16 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
     /**
      * Render a heading
      *
-     * @param string $text  the text to display
-     * @param int    $level header level
+     * @param string $hid   heading identifier
+     * @param int    $level heading level
      * @param int    $pos   byte position in the original source
+     * @param array  $extra additional/extended info of the heading
      */
-    function header($hid, $level, $pos, $number=null, $title=null, $xhtml=null) {
+    function header($hid, $level, $pos, $extra = []) {
         global $ACT, $INFO, $ID, $conf;
+
+        // import variables from extra array; $number, $title, $xhtml
+        extract($extra);
 
         /*
          * EXPERIMENTAL: Render a formatted heading
