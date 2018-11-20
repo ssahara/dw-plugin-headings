@@ -10,7 +10,7 @@
 
 if(!defined('DOKU_INC')) die();
 
-class syntax_plugin_headings_preprocess extends DokuWiki_Syntax_Plugin {
+class syntax_plugin_headings_handler extends DokuWiki_Syntax_Plugin {
 
     function getType() { return 'baseonly'; }
     function getPType(){ return 'block'; }

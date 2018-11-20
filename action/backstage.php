@@ -10,7 +10,7 @@
 
 if(!defined('DOKU_INC')) die();
 
-class action_plugin_headings_preprocess extends DokuWiki_Action_Plugin {
+class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
 
     /**
      * Register event handlers
