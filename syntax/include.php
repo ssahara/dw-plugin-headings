@@ -18,10 +18,6 @@
  
 if(!defined('DOKU_INC')) die();
  
-/** 
- * All DokuWiki plugins to extend the parser/rendering mechanism 
- * need to inherit from this class 
- */ 
 class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
 
     /** @var $helper helper_plugin_include */
@@ -86,9 +82,9 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             $flags = explode(' ', $flags);
             $mode = $sect ? 'section' : 'page';
 
-            $page = ($page) ? cleanID($page) : $ID;
+            $page = $page ? cleanID($page) : $ID;
             $check = false;
-            $sect = (isset($sect)) ? sectionID($sect, $check) : null;
+            $sect = isset($sect) ? sectionID($sect, $check) : null;
 
             // check whether page and section exist using meta file
             $check = [];
@@ -124,7 +120,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         }
 
         $level = null;
-        return array($mode, $page, $sect, $flags, $level, $pos, $out);
+        return $data = [$mode, $page, $sect, $flags, $level, $pos, $out];
     }
 
     /**
@@ -135,15 +131,15 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
     function render($format, Doku_Renderer $renderer, $data) {
         global $ACT, $ID;
 
-        list($mode, $page, $sect, $flags, $level, $pos, $out) = $data;
+        [$mode, $page, $sect, $flags, $level, $pos, $out] = $data;
 
         if ($format == 'xhtml' && $ACT == 'preview') {
-                    $renderer->doc .= $out;
+            $renderer->doc .= $out;
         }
 
         if ($format == 'metadata') {
-            $renderer->meta['plugin_include'] = [];
             /** @var Doku_Renderer_metadata $renderer */
+            $renderer->meta['plugin_include'] = [];
             $metadata =& $renderer->meta['plugin_include'];
         }
 
@@ -172,13 +168,11 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             }
 
             $metadata['instructions'][] = compact('mode', 'page', 'sect', 'parent_id', $flags);
-            if (!isset($metadata['pages']))
-               $metadata['pages'] = []; // add an array for array_merge
-            $metadata['pages'] = array_merge($metadata['pages'], $pages);
+            $metadata['pages'] = array_merge( (array)$metadata['pages'], $pages);
             $metadata['include_content'] = isset($_REQUEST['include_content']);
         }
 
-        $secids = array();
+        $secids = [];
         if ($format == 'xhtml' || $format == 'odt') {
             $secids = p_get_metadata($ID, 'plugin_include secids');
         }
@@ -198,10 +192,10 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                 if (!$sect && !$flags['firstsec'] && !$flags['linkonly']
                     && !isset($metadata['secids'][$id])
                 ){
-                    $metadata['secids'][$id] = array(
+                    $metadata['secids'][$id] = [
                         'hid' => 'plugin_include__'.str_replace(':', '__', $id),
                         'pos' => $pos
-                    );
+                    ];
                 }
             }
 
@@ -215,13 +209,11 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
 
             if (!$flags['editbtn']) {
                 global $conf;
-                $maxseclevel_org = $conf['maxseclevel'];
-                $conf['maxseclevel'] = 0;
+                [$conf['maxseclevel'], $maxseclevel_org] = [0, $conf['maxseclevel']];
             }
             $renderer->nest($instructions);
             if (isset($maxseclevel_org)) {
-                $conf['maxseclevel'] = $maxseclevel_org;
-                unset($maxseclevel_org);
+                [$conf['maxseclevel'], $maxseclevel_org] = [$maxseclevel_org, null];
             }
 
             array_pop($page_stack);
@@ -329,7 +321,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         if($flags['firstsec']) {
             $this->_get_firstsec($ins, $page, $flags);  // only first section 
         }
-        
+
         $ns  = getNS($page);
         $num = count($ins);
 
@@ -398,10 +390,11 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                                 $ins[$i][1][1][4] += $lvl;
                             break;
                         /*
-                         * if there is already a closelastsecedit instruction (was added by one of the section
-                         * functions), store its position but delete it as it can't be determined yet if it is needed,
-                         * i.e. if there is a header which generates a section edit (depends on the levels, level
-                         * adjustments, $no_header, ...)
+                         * if there is already a closelastsecedit instruction (was added by
+                         * one of the section functions), store its position but delete it
+                         * as it can't be determined yet if it is needed,
+                         * i.e. if there is a header which generates a section edit (depends
+                         * on the levels, level adjustments, $no_header, ...)
                          */
                         case 'include_closelastsecedit':
                             $endpos = $ins[$i][1][1][0];
@@ -428,7 +421,9 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         $section_close_at = false;
         foreach ($conv_idx as $idx) {
             if ($ins[$idx][0] == 'header') {
-                if ($section_close_at === false && isset($ins[$idx+1]) && $ins[$idx+1][0] == 'section_open') {
+                if ($section_close_at === false
+                    && isset($ins[$idx+1]) && $ins[$idx+1][0] == 'section_open'
+                ){
                     // store the index of the first heading that is followed by a new section
                     // the wrap plugin creates sections without section_open so the section
                     // shouldn't be closed before them
