@@ -382,7 +382,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                     break;
                 case 'plugin':
                     // FIXME skip other plugins?
-                    switch($ins[$i][1][0]) {
+                    switch ($ins[$i][1][0]) {
                         case 'tag_tag':                 // skip tags
                         case 'discussion_comments':     // skip comments
                         case 'linkback':                // skip linkbacks
@@ -426,7 +426,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         $footer_lvl       = false;
         $contains_secedit = false;
         $section_close_at = false;
-        foreach($conv_idx as $idx) {
+        foreach ($conv_idx as $idx) {
             if ($ins[$idx][0] == 'header') {
                 if ($section_close_at === false && isset($ins[$idx+1]) && $ins[$idx+1][0] == 'section_open') {
                     // store the index of the first heading that is followed by a new section
@@ -519,7 +519,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         }
 
         // add instructions entry wrapper
-        $include_secid = (isset($flags['include_secid']) ? $flags['include_secid'] : NULL);
+        $include_secid = (isset($flags['include_secid']) ? $flags['include_secid'] : null);
         array_unshift($ins, array('plugin',
             array('include_wrap', array('open', $page, $flags['redirect'], $include_secid))
         ));
@@ -673,31 +673,33 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      */ 
     function _get_section(&$ins, $sect) {
         $num = count($ins);
-        $offset = false;
-        $lvl    = false;
-        $end    = false;
+        $offset = null;
+        $lvl    = null;
+        $length = null;
         $endpos = null; // end position in the input text, needed for section edit buttons
 
         $check = []; // used for sectionID() in order to get the same ids as the xhtml renderer
 
         for ($i = 0; $i < $num; $i++) {
             if ($ins[$i][0] == 'header') {
-
-                // found the right header 
-                if (sectionID($ins[$i][1][0], $check) == $sect) {
+                // find the right header
+                if (!isset($offset, $lvl) && (sectionID($ins[$i][1][0], $check) == $sect)) {
                     $offset = $i;
-                    $lvl    = $ins[$i][1][1]; 
-                } elseif ($offset && $lvl && ($ins[$i][1][1] <= $lvl)) {
-                    $end = $i - $offset;
-                    $endpos = $ins[$i][1][2]; // the position directly after the found section, needed for the section edit button
+                    $lvl    = $ins[$i][1][1];
+                    continue;
+                }
+                // find end position for the section edit button, if the right header has found
+                if (isset($offset, $lvl) && ($ins[$i][1][1] <= $lvl)) {
+                    $length = $i - $offset;
+                    $endpos = $ins[$i][1][2];
                     break;
                 }
             }
         }
-        $offset = $offset ? $offset : 0;
-        $end = $end ? $end : ($num - 1);
+        $offset = isset($offset) ? $offset : 0;
+        $length = isset($length) ? $length : ($num - 1);
         if(is_array($ins)) {
-            $ins = array_slice($ins, $offset, $end);
+            $ins = array_slice($ins, $offset, $length);
             // store the end position in the include_closelastsecedit instruction
             // so it can generate a matching button
             $ins[] = array('plugin', array('include_closelastsecedit', array($endpos)));
@@ -752,8 +754,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         $pages = [];
         switch ($mode) {
             case 'namespace':
-                $page  = cleanID($page);
-                $ns    = utf8_encodeFN(str_replace(':', '/', $page));
+                $page = cleanID($page);
+                $ns   = utf8_encodeFN(str_replace(':', '/', $page));
                 // depth is absolute depth, not relative depth, but 0 has a special meaning.
                 $depth = $flags['depth']
                     ? $flags['depth'] + substr_count($page, ':') + ($page ? 1 : 0)
