@@ -749,47 +749,34 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      * @author Michael Hamann <michael@content-space.de>
      */
     function _get_included_pages($mode, $page, $sect, $parent_id, $flags) {
-        global $conf;
-        $pages = array();
-        switch($mode) {
-        case 'namespace':
-            $page  = cleanID($page);
-            $ns    = utf8_encodeFN(str_replace(':', '/', $page));
-            // depth is absolute depth, not relative depth, but 0 has a special meaning.
-            $depth = $flags['depth']
-                ? $flags['depth'] + substr_count($page, ':') + ($page ? 1 : 0)
-                : 0;
-            search($pagearrays, $conf['datadir'], 'search_allpages', ['depth' => $depth], $ns);
-            if (is_array($pagearrays)) {
-                foreach ($pagearrays as $pagearray) {
-                    if (!isHiddenPage($pagearray['id'])) // skip hidden pages
-                        $pages[] = $pagearray['id'];
+        $pages = [];
+        switch ($mode) {
+            case 'namespace':
+                $page  = cleanID($page);
+                $ns    = utf8_encodeFN(str_replace(':', '/', $page));
+                // depth is absolute depth, not relative depth, but 0 has a special meaning.
+                $depth = $flags['depth']
+                    ? $flags['depth'] + substr_count($page, ':') + ($page ? 1 : 0)
+                    : 0;
+                $pages = $this->_get_pages_in_ns($ns, $depth);
+                break;
+
+            case 'tagtopic':
+                $tagname = $page;
+                $sect = '';
+                $pages = $this->_get_tagged_pages($tagname);
+                break;
+
+            case 'page':
+            case 'section':
+            default:
+                $page = $this->_apply_macro($page, $parent_id);
+                // resolve shortcuts and clean ID
+                resolve_pageid(getNS($parent_id), $page, $exists);
+                if (auth_quickaclcheck($page) >= AUTH_READ) {
+                    $pages = [$page];
                 }
-            }
-            break;
-        case 'tagtopic':
-            /** @var helper_plugin_tag $tagHelper */
-            static $tagHelper;
-            if (!isset($tagHelper)) {
-                $tagHelper = $this->loadHelper('tag', true);
-                if (!$tagHelper) {
-                    msg('You have to install the tag plugin to use this functionality!', -1);
-                    return $pages = [];
-                }
-            }
-            $tag   = $page;
-            $sect  = '';
-            $pagearrays = $tagHelper->getTopic('', null, $tag);
-            foreach ($pagearrays as $pagearray) {
-                $pages[] = $pagearray['id'];
-            }
-            break;
-        default:
-            $page = $this->_apply_macro($page, $parent_id);
-            resolve_pageid(getNS($parent_id), $page, $exists); // resolve shortcuts and clean ID
-            if (auth_quickaclcheck($page) >= AUTH_READ)
-                $pages[] = $page;
-        }
+        } // end of switch
 
         if (count($pages) > 1) {
             $pages = $this->_sort_pages($pages, $flags['order'], $flags['rsort']);
@@ -797,12 +784,52 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
 
         $included_pages = [];
         foreach ($pages as $page) {
-            $exists = page_exists($page);
             $included_pages[] = array(
-                'id' => $page, 'exists' => $exists, 'parent_id' => $parent_id
+                'id'        => $page,
+                'exists'    => page_exists($page),
+                'parent_id' => $parent_id,
             );
         }
         return $included_pages;
+    }
+
+    /**
+     * Get a list of pages found in specified namespace
+     *
+     * @param string $ns
+     * @param int    $depth  $flags['depth'] (default 1)
+     *                       maximum depth of includes, 0 for unlimited
+     */
+    private function _get_pages_in_ns($ns='/', $depth=1) {
+        global $conf;
+        search($pagearrays, $conf['datadir'], 'search_allpages', ['depth' => $depth], $ns);
+        $pages = [];
+        foreach ($pagearrays as $pagearray) {
+            if (!isHiddenPage($pagearray['id'])) // skip hidden pages
+                $pages[] = $pagearray['id'];
+        }
+        return $pages;
+    }
+
+    /**
+     * Get a list of tagged pages with specified tag name
+     */
+    private function _get_tagged_pages($tagname='') {
+        /** @var helper_plugin_tag $tagHelper */
+        static $tagHelper;
+        if (!isset($tagHelper)) {
+            $tagHelper = $this->loadHelper('tag', true);
+            if (!$tagHelper) {
+                msg('You have to install the tag plugin to use this functionality!', -1);
+                return $pages = [];
+            }
+        }
+        $pages = [];
+        $pagearrays = $tagHelper->getTopic('', null, $tagname);
+        foreach ($pagearrays as $pagearray) {
+            $pages[] = $pagearray['id'];
+        }
+        return $pages;
     }
 
     /**
@@ -812,7 +839,6 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      * @param bool   $sortReverse  $flags['rsort'] (default 0)
      */
     private function _sort_pages(array $pages, $sortOrder='id', $sortReverse=0) {
-
         if ($sortOrder == 'id') {
             if ($sortReverse) {
                 usort($pages, array($this,'_r_strnatcasecmp'));
