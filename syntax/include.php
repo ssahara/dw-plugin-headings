@@ -119,7 +119,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             $out = '<code class="preview_note">'.$match.' '.'</code>';
         }
 
-        $level = null;
+        $level = null; // it will be set in PARSER_HANDLER_DONE event handler
         return $data = [$mode, $page, $sect, $flags, $level, $pos, $out];
     }
 
@@ -131,6 +131,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
     function render($format, Doku_Renderer $renderer, $data) {
         global $ACT, $ID;
 
+        // get data, of which $level has set in PARSER_HANDLER_DONE event handler
         [$mode, $page, $sect, $flags, $level, $pos, $out] = $data;
 
         if ($format == 'xhtml' && $ACT == 'preview') {
@@ -185,16 +186,17 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             if (in_array($id, $page_stack)) continue;
             array_push($page_stack, $id);
 
-            // add references for backlink
             if ($format == 'metadata') {
+                // add references for backlink
                 $renderer->meta['relation']['references'][$id] = $exists;
                 $renderer->meta['relation']['haspart'][$id]    = $exists;
+
                 if (!$sect && !$flags['firstsec'] && !$flags['linkonly']
                     && !isset($metadata['secids'][$id])
                 ){
                     $metadata['secids'][$id] = [
                         'hid' => 'plugin_include__'.str_replace(':', '__', $id),
-                        'pos' => $pos
+                        'pos' => $pos,
                     ];
                 }
             }
@@ -217,7 +219,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             }
 
             array_pop($page_stack);
-        }
+        } //end of foreach
 
         // When all includes have been handled remove the current id
         // in order to allow the rendering of other pages
@@ -261,11 +263,10 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             $root_id = $ID;
         }
 
+        // link only to the included pages instead of including the content
         if ($flags['linkonly']) {
             if (page_exists($page) || $flags['pageexists']  == 0) {
-                $title = '';
-                if ($flags['title'])
-                    $title = p_get_first_heading($page);
+                $title = $flags['title'] ? p_get_first_heading($page) : '';
                 if ($flags['parlink']) {
                     $ins = array(
                         array('p_open', array()),
@@ -274,26 +275,27 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                     );
                 } else {
                     $ins = array(
-                        array('internallink', array(':'.$key,$title))
+                        array('internallink', array(':'.$key, $title)),
                     );
                 }
             }else {
                 $ins = array();
             }
-        } else {
-            if (page_exists($page)) {
-                global $ID;
-                // Change the global $ID as otherwise plugins like the discussion plugin
-                // will save data for the wrong page
-                [$ID, $backupID] = [$page, $ID];
-                $ins = p_cached_instructions(wikiFN($page), false, $page);
-                $ID = $backupID;
-            } else {
-                $ins = array();
-            }
-
-            $this->_convert_instructions($ins, $lvl, $page, $sect, $flags, $root_id, $included_pages);
+            return $ins;
         }
+
+        if (page_exists($page)) {
+            global $ID;
+            // Change the global $ID as otherwise plugins like the discussion plugin
+            // will save data for the wrong page
+            [$ID, $backupID] = [$page, $ID];
+            $ins = p_cached_instructions(wikiFN($page), false, $page);
+            $ID = $backupID;
+        } else {
+            $ins = array();
+        }
+
+        $this->_convert_instructions($ins, $lvl, $page, $sect, $flags, $root_id, $included_pages);
         return $ins;
     }
 
@@ -564,7 +566,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
 
     /**
      * Convert instruction item for a permalink header
-     * 
+     *
      * @author Michael Klier <chi@chimeric.de>
      */
     function _permalink(&$ins, $page, $sect, $flags) {
@@ -781,11 +783,11 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
 
         $included_pages = [];
         foreach ($pages as $page) {
-            $included_pages[] = array(
+            $included_pages[] = [
                 'id'        => $page,
                 'exists'    => page_exists($page),
                 'parent_id' => $parent_id,
-            );
+            ];
         }
         return $included_pages;
     }
