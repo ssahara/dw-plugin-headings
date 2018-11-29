@@ -92,7 +92,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             $check['page'] = isset($toc);
             if (isset($toc) && $sect) {
                 $map = array_column($toc, null, 'hid');
-                $hid = $map[$sect]['hid'] ?? null;
+                $hid   = $map[$sect]['hid'] ?? null;
+                $title = $map[$sect]['title'] ?? null;
                 $check['sect'] = isset($hid);
             }
             $sect = $hid;
@@ -104,7 +105,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                 } elseif (isset($check['page']) && $page == $ID) {
                     $note = 'self page inclusion!';
                 } elseif ($hid) {
-                    $note = '(#'.$hid.')';
+                    $note = '(#'.$hid.' '.$title.')';
                 }
                 $out = '<code class="preview_note">'.$match.' '.$note.'</code>';
             error_log(' INCLUDE3 '.$match.' '.$note);
@@ -208,6 +209,24 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             }
 
             $instructions = $this->_get_instructions($id, $sect, $mode, $level, $flags, $root_id, $secids);
+
+            // store headers found in the instruction for complete tableofcontents
+            // which is done later in PARSER_METADATA_RENDER event handler
+            if ($format == 'metadata') {
+                foreach ($instructions as $instruction) {
+                    if ($instruction[0] == 'header') {
+                        $metadata['tableofcontents'][$pos][] = [
+                            'hid'    => $instruction[1][0],
+                            'level'  => $instruction[1][1],
+                            'pos'    => $instruction[1][2],
+                            'number' => $instruction[1][3]['number'] ?? null,
+                            'title'  => $instruction[1][3]['title'] ?? '',
+                            'xhtml'  => $instruction[1][3]['xhtml'] ?? '',
+                            'type'   => 'ul',
+                        ];
+                    }
+                } // end of foreach
+            }
 
             if (!$flags['editbtn']) {
                 global $conf;

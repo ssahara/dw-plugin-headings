@@ -43,6 +43,7 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
      */
     function rewrite_header_instructions(Doku_Event $event) {
         global $ID;
+        $headers = []; // memory once used hid
 
         $instructions =& $event->data->calls;
 
@@ -50,11 +51,18 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
         foreach ($instructions as $k => &$instruction) {
             if ($instruction[0] == 'header') {
                 [$hid, $level, $pos] = $instruction[1];
-                $extra = [
-                    'number' => $instructions[$k+2][1][1][3],
-                    'title'  => $instructions[$k+2][1][1][5],
-                    'xhtml'  => $instructions[$k+2][1][1][6],
-                ];
+                if ($instructions[$k+2][1][0] == 'headings_handler') {
+                    $extra = [
+                        'number' => $instructions[$k+2][1][1][3],
+                        'title'  => $instructions[$k+2][1][1][5],
+                        'xhtml'  => $instructions[$k+2][1][1][6],
+                    ];
+                } else {
+                    $extra = [
+                        'title'  => $hid,
+                    ];
+                }
+                $hid = sectionID($hid, $headers);
                 $instruction[1] = [$hid, $level, $pos, $extra];
             }
         }
@@ -86,44 +94,56 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
         }
 
         $toc =& $event->data['current']['description']['tableofcontents'];
-        if (!isset($toc)) return;
-
+        $count_toc = is_array($toc) ? count($toc) : null;
         // retrieve from metadata
-        $metadata =& $event->data['current']['plugin'][$this->getPluginName()];
-        $headings = $metadata['tableofcontents'];
-        if (!isset($headings)) return;
-
-        // original         extended
-        // -------- ------- --------
-        //                   'page'
-        //  'pos'            'pos'
-        //  'level'          'level'   need to replace with original value
-        //  'title' -> hid   'hid'     need to replace with original value
-        //                   'title'
-        //                   'xhtml'
-        //  'type'
-
+        $metadata =& $event->data['current']['plugin_include'];
         $headers = []; // memory once used hid
 
-        $counts = count($headings);
-        if ($counts == count($toc)) {
-            for ($k = 0; $k < $counts; $k++) {
-             // error_log('  $heading[k]='.var_export($headings[$k],1));
-                $headings[$k]['level'] = $toc[$k]['level'];
-             // $headings[$k]['hid']   = sectionID($item['hid'], $headers);
-                $headings[$k]['hid']   = $toc[$k]['hid'];
-                $headings[$k]['type']  = 'ul';
+        // Generate tableofcontents based on instruction data
+        $tableofcontents = [];
+        $instructions = p_cached_instructions(wikiFN($ID), true, $ID) ?? [];
+        foreach ($instructions as $instruction) {
+            if ($instruction[0] == 'header') {
+                // update hid
+                $instruction[1][0] = sectionID($instruction[1][0], $headers);
+                $tableofcontents[] = [
+                    'hid'    => $instruction[1][0],
+                    'level'  => $instruction[1][1],
+                    'pos'    => $instruction[1][2],
+                    'number' => $instruction[1][3]['number'] ?? null,
+                    'title'  => $instruction[1][3]['title'] ?? '',
+                    'xhtml'  => $instruction[1][3]['xhtml'] ?? '',
+                    'type'   => 'ul',
+                ];
+            } elseif ($instruction[0] == 'plugin'
+                && $instruction[1][0] == 'headings_include'
+                && in_array($instruction[1][1][0], ['section','page']) // mode
+            ){
+                $pos = $instruction[2];
+                $page = $instruction[1][1][1];
+                $sect = $instruction[1][1][2];
+                // get headers from metadata that is stored by include syntax component
+                $included_headers = $metadata['tableofcontents'][$pos] ?? [];
+                foreach ($included_headers as $item) {
+                    $item['hid'] = sectionID($item['hid'], $headers);
+                    $tableofcontents[] = $item;
+                }
             }
-            $toc = $headings; // overwrite tableofcontents
+        } // end of foreach
 
-            // remove plugin's metadata
-            unset($metadata['tableofcontents']);
-        } else {
-            $debug = $event->name.': ';
-            $debug.= 'toc counts ('.count($toc).') is not equal to ';
-            $debug.= 'headings counts ('.$counts.') in '.$ID;
-            error_log($debug);
+        // set pagename
+        $count_headers = count($tableofcontents);
+        if ($count_headers && $tableofcontents[0]['title']) {
+            $event->data['current']['title'] = $tableofcontents[0]['title'];
         }
+
+        if ($count_toc != $count_headers) {
+            $debug = $event->name.': ';
+            $s = 'toc counts ('.$count_toc.') is not equal to ';
+            $s.= 'instruction-based headings counts ('.$count_headers.') in '.$ID;
+            error_log($debug.$s);
+        }
+        $toc = $tableofcontents;
     }
 
 
