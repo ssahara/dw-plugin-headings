@@ -820,7 +820,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      */
     private function _get_pages_in_ns($ns='/', $depth=1) {
         global $conf;
-        search($pagearrays, $conf['datadir'], 'search_allpages', ['depth' => $depth], $ns);
+        $opts = ['depth' => $depth, 'skipacl' => false];
+        search($pagearrays, $conf['datadir'], 'search_allpages', $opts, $ns);
         $pages = [];
         foreach ($pagearrays as $pagearray) {
             if (!isHiddenPage($pagearray['id'])) // skip hidden pages
