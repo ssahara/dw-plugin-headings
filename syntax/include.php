@@ -52,7 +52,6 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             $this->Lexer->addSpecialPattern($this->pattern[3], $mode, $this->mode);
             $this->Lexer->addSpecialPattern($this->pattern[4], $mode, $this->mode);
         }
-       // namespace tagtopic は 別クラスにするか？
        // handler() で $flagsを処理をすべきか？
        // 自分のページのセクションをインクルードしたい
        // noheader でインクルードした場合に、その見だしは hidden にする。
@@ -97,18 +96,17 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                 $check['sect'] = isset($hid);
             }
             $sect = $hid;
-                $note = '';
-                if (isset($check['sect']) && !$check['sect']) {
-                    $note = 'section not found!';
-                } elseif (isset($check['page']) && !$check['page']) {
-                    $note = 'page not found!';
-                } elseif (isset($check['page']) && $page == $ID) {
-                    $note = 'self page inclusion!';
-                } elseif ($hid) {
-                    $note = '(#'.$hid.' '.$title.')';
-                }
-                $out = '<code class="preview_note">'.$match.' '.$note.'</code>';
-            error_log(' INCLUDE3 '.$match.' '.$note);
+            $note = '';
+            if (isset($check['sect']) && !$check['sect']) {
+                $note = 'section not found!';
+            } elseif (isset($check['page']) && !$check['page']) {
+                $note = 'page not found!';
+            } elseif (isset($check['page']) && $page == $ID) {
+                $note = 'self page inclusion!';
+            } elseif ($hid) {
+                $note = '(#'.$hid.' '.$title.')';
+            }
+            $extra = [$match, $note];
 
         } else {
             // use case {{section>[id]#[section]&[flags]}}
@@ -117,11 +115,11 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             $flags = explode('&', $flags);
             $check = false;
             $sect = isset($sect) ? sectionID($sect, $check) : null;
-            $out = '<code class="preview_note">'.$match.' '.'</code>';
+            $extra = [$match,''];
         }
 
         $level = null; // it will be set in PARSER_HANDLER_DONE event handler
-        return $data = [$mode, $page, $sect, $flags, $level, $pos, $out];
+        return $data = [$mode, $page, $sect, $flags, $level, $pos, $extra];
     }
 
     /**
@@ -133,10 +131,11 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         global $ACT, $ID;
 
         // get data, of which $level has set in PARSER_HANDLER_DONE event handler
-        [$mode, $page, $sect, $flags, $level, $pos, $out] = $data;
+        [$mode, $page, $sect, $flags, $level, $pos, $extra] = $data;
 
         if ($format == 'xhtml' && $ACT == 'preview') {
-            $renderer->doc .= $out;
+            [$match, $note] = $extra;
+            $renderer->doc .= '<code class="preview_note">'.$match.' '.$note.'</code>';
         }
 
         if ($format == 'metadata') {
@@ -176,7 +175,9 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
 
         $secids = [];
         if ($format == 'xhtml' || $format == 'odt') {
-            $secids = p_get_metadata($ID, 'plugin_include secids');
+            global $INFO;
+          //$secids = p_get_metadata($ID, 'plugin_include secids');
+            $secids = $INFO['meta']['plugin_include']['secids'];
         }
 
         foreach ($pages as $page) {
@@ -210,8 +211,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
 
             $instructions = $this->_get_instructions($id, $sect, $mode, $level, $flags, $root_id, $secids);
 
-            // store headers found in the instruction for complete tableofcontents
-            // which is done later in PARSER_METADATA_RENDER event handler
+            // store headers found in the instructions for complete tableofcontents
+            // which is built later in PARSER_METADATA_RENDER event handler
             if ($format == 'metadata') {
                 foreach ($instructions as $instruction) {
                     if ($instruction[0] == 'header') {
@@ -364,19 +365,19 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                     break;
                 case 'header':
                     // get section title of first section
-                    if($sect && !$sect_title) {
+                    if ($sect && !$sect_title) {
                         $sect_title = $ins[$i][1][0];
                     }
                     // check if we need to skip the first header
-                    if((!$no_header) && $flags['noheader']) {
+                    if ((!$no_header) && $flags['noheader']) {
                         $no_header = true;
                     }
 
                     $conv_idx[] = $i;
                     // get index of first header
-                    if($first_header == -1) $first_header = $i;
+                    $first_header = ($first_header == -1) ? $i : -1;
                     // get max level of this instructions set
-                    if(!$lvl_max || ($ins[$i][1][1] < $lvl_max)) {
+                    if (!$lvl_max || ($ins[$i][1][1] < $lvl_max)) {
                         $lvl_max = $ins[$i][1][1];
                     }
                     break;
@@ -872,7 +873,9 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             $key = '';
             switch ($sortOrder) {
                 case 'title':
-                    $key = p_get_first_heading($page); // タイトル
+                  //$key = p_get_first_heading($page);
+                    $render = METADATA_RENDER_USING_SIMPLE_CACHE;
+                    $key = p_get_metadata($page,'title', $render);
                     break;
                 case 'created':
                     $render = METADATA_DONT_RENDER;
