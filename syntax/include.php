@@ -52,11 +52,6 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             $this->Lexer->addSpecialPattern($this->pattern[3], $mode, $this->mode);
             $this->Lexer->addSpecialPattern($this->pattern[4], $mode, $this->mode);
         }
-       // handler() で $flagsを処理をすべきか？
-       // 自分のページのセクションをインクルードしたい
-       // noheader でインクルードした場合に、その見だしは hidden にする。
-       // (inc/metadata.php と headings ブラグインで tableofcontents の出方が異なる
-       // noheader の見だしが headings 側に出現してしまう)
     }
 
     /**
@@ -71,7 +66,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
     function handle($match, $state, $pos, Doku_Handler $handler) {
         global $ID;
 
-        static $includeHelper;
+      //static $includeHelper;
       //isset($includeHelper) || $includeHelper = $this->loadHelper('include', true);
 
         if (substr($match, 2, 7) == 'INCLUDE') {
@@ -286,7 +281,12 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         // link only to the included pages instead of including the content
         if ($flags['linkonly']) {
             if (page_exists($page) || $flags['pageexists']  == 0) {
-                $title = $flags['title'] ? p_get_first_heading($page) : '';
+                if ($flags['title']) {
+                    $render = METADATA_RENDER_USING_SIMPLE_CACHE;
+                    $title = p_get_metadata($page,'title', $render);
+                } else {
+                    $title = '';
+                }
                 if ($flags['parlink']) {
                     $ins = array(
                         array('p_open', array()),
@@ -453,7 +453,10 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                 }
 
                 if ($no_header && !$hdr_deleted) {
-                    unset ($ins[$idx]);
+                    // ** ALTERNATIVE APPROACH in Heading PreProcessor (HPP) plugin **
+                    // render the header as link anchor, instead delete it.
+                    $ins[$idx][1][3]['title'] = ''; // hidden header <a id=hid></a>
+                 // unset ($ins[$idx]);
                     $hdr_deleted = true;
                     continue;
                 }
