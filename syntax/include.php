@@ -123,7 +123,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      * @author Michael Hamann <michael@content-space.de>
      */
     function render($format, Doku_Renderer $renderer, $data) {
-        global $ACT, $ID;
+        global $ACT, $ID, $conf;
 
         // get data, of which $level has set in PARSER_HANDLER_DONE event handler
         [$mode, $page, $sect, $flags, $level, $pos, $extra] = $data;
@@ -154,6 +154,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
 
         $flags = $includeHelper->get_flags($flags);
 
+        // get included pages, of which each item has keys: id, exists, parent_id
         $pages = $this->_get_included_pages($mode, $page, $sect, $parent_id, $flags);
 
         if ($format == 'metadata') {
@@ -163,6 +164,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                 unset($renderer->meta['plugin_include']);
             }
 
+            // 
             $metadata['instructions'][] = compact('mode', 'page', 'sect', 'parent_id', $flags);
             $metadata['pages'] = array_merge( (array)$metadata['pages'], $pages);
             $metadata['include_content'] = isset($_REQUEST['include_content']);
@@ -176,7 +178,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         }
 
         foreach ($pages as $page) {
-            extract($page);
+          //extract($page);
             $id = $page['id'];
             $exists = $page['exists'];
 
@@ -204,7 +206,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                 unset($flags['include_secid']);
             }
 
-            $instructions = $this->_get_instructions($id, $sect, $mode, $level, $flags, $root_id, $secids);
+            $instructions = $this->_get_instructions($id, $sect, $level, $flags, $root_id, $secids);
 
             // store headers found in the instructions for complete tableofcontents
             // which is built later in PARSER_METADATA_RENDER event handler
@@ -225,7 +227,6 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             }
 
             if (!$flags['editbtn']) {
-                global $conf;
                 [$conf['maxseclevel'], $maxseclevel_org] = [0, $conf['maxseclevel']];
             }
             $renderer->nest($instructions);
@@ -268,7 +269,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      * @author Michael Klier <chi@chimeric.de>
      * @author Michael Hamann <michael@content-space.de>
      */
-    function _get_instructions($page, $sect, $mode, $lvl, $flags, $root_id=null, $included_pages=[]) {
+    function _get_instructions($page, $sect, $lvl, $flags, $root_id=null, $included_pages=[]) {
         $key = ($sect) ? $page . '#' . $sect : $page;
         $this->includes[$key] = true; // legacy code for keeping compatibility with other plugins
 
