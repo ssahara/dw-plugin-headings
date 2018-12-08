@@ -544,11 +544,13 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         array_unshift($ins, array('plugin',
             array('include_wrap', array('open', $page, $flags['redirect'], $include_secid))
         ));
-        if (isset($flags['beforeeach']))
+        if (isset($flags['beforeeach'])) {
             array_unshift($ins, array('entity', array($flags['beforeeach'])));
+        }
         array_push($ins, array('plugin', array('include_wrap', array('close'))));
-        if (isset($flags['aftereach']))
+        if (isset($flags['aftereach'])) {
             array_push($ins, array('entity', array($flags['aftereach'])));
+        }
 
         // close previous section if any and re-open after inclusion
         if ($lvl != 0 && $this->sec_close && !$flags['inline']) {
@@ -765,6 +767,22 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             }
         }
     }
+
+
+
+    /**
+     * Build instruction item for syntax plugin components
+     *
+     * @author Satoshi Sahara <sahara.satoshi@gmail.com>
+     */
+    function pluginInstruction($method, array $params) {
+        $instruction = [];
+        $instruction[0] = 'plugin';
+        $instruction[1] = [$method, (array)$params];
+        return $instruction;
+    }
+
+
 
     /**
      * Gives a list of pages for a given include statement
