@@ -504,26 +504,28 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
 
         // close last open section of the included page if there is any
         if ($contains_secedit) {
-            array_push($ins,
-                 array('plugin', array('include_closelastsecedit', array($endpos)))
-            );
+            $ins[] = $this->pluginInstruction('include_closelastsecedit', [$endpos]);
         }
 
         // add edit button
         if ($flags['editbtn']) {
-            $this->_editbtn($ins, $page, $sect, $sect_title, ($flags['redirect'] ? $root_id : false));
+          //$this->_editbtn($ins, $page, $sect, $sect_title, ($flags['redirect'] ? $root_id : false));
+            $ins[] = $this->pluginInstruction('include_editbtn', [($sect ? $sect_title : $page)]);
         }
 
         // add footer
         if ($flags['footer']) {
-            $ins[] = $this->_footer($page, $sect, $sect_title, $flags, $footer_lvl, $root_id);
+          //$ins[] = $this->_footer($page, $sect, $sect_title, $flags, $footer_lvl, $root_id);
+            $ins[] = $this->pluginInstruction(
+                'include_footer', [$page, $sect, $sect_title, $flags, $root_id, $footer_lvl]
+            );
         }
 
         // wrap content at the beginning of the include that is not in a section in a section
         if ($lvl > 0 && $section_close_at !== 0 && $flags['indent'] && !$flags['inline']) {
             if ($section_close_at === false) {
-                $ins[] = array('section_close', array());
-                array_unshift($ins, array('section_open', array($lvl)));
+                $ins[] = array('section_close', []);
+                array_unshift($ins, array('section_open', [$lvl]));
             } else {
                 $section_close_idx = array_search($section_close_at, array_keys($ins));
                 if ($section_close_idx > 0) {
@@ -531,31 +533,34 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                     $after_ins = array_slice($ins, $section_close_idx);
                     $ins = array_merge(
                         $before_ins,
-                        array(array('section_close', array())),
+                        array(array('section_close', [])),
                         $after_ins
                     );
-                    array_unshift($ins, array('section_open', array($lvl)));
+                    array_unshift($ins, array('section_open', [$lvl]));
                 }
             }
         }
 
         // add instructions entry wrapper
         $include_secid = (isset($flags['include_secid']) ? $flags['include_secid'] : null);
-        array_unshift($ins, array('plugin',
-            array('include_wrap', array('open', $page, $flags['redirect'], $include_secid))
+        array_unshift($ins, $this->pluginInstruction(
+            'include_wrap', ['open', $page, $flags['redirect'], $include_secid]
         ));
+
         if (isset($flags['beforeeach'])) {
             array_unshift($ins, array('entity', array($flags['beforeeach'])));
         }
-        array_push($ins, array('plugin', array('include_wrap', array('close'))));
+
+        array_push($ins, $this->pluginInstruction('include_wrap', ['close']));
+
         if (isset($flags['aftereach'])) {
             array_push($ins, array('entity', array($flags['aftereach'])));
         }
 
         // close previous section if any and re-open after inclusion
         if ($lvl != 0 && $this->sec_close && !$flags['inline']) {
-            array_unshift($ins, array('section_close', array()));
-            $ins[] = array('section_open', array($lvl));
+            array_unshift($ins, array('section_close', []));
+            $ins[] = array('section_open', [$lvl]);
         }
     }
 
@@ -565,11 +570,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      * @author Michael Klier <chi@chimeric.de>
      */
     function _footer($page, $sect, $sect_title, $flags, $footer_lvl, $root_id) {
-        $footer = [];
-        $footer[0] = 'plugin';
-        $footer[1] = array(
-            'include_footer',
-            array($page, $sect, $sect_title, $flags, $root_id, $footer_lvl)
+        $footer = $this->pluginInstruction(
+            'include_footer', [$page, $sect, $sect_title, $flags, $root_id, $footer_lvl]
         );
         return $footer;
     }
@@ -581,12 +583,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      */
     function _editbtn(&$ins, $page, $sect, $sect_title, $root_id) {
         $title = ($sect) ? $sect_title : $page;
-        $editbtn = [];
-        $editbtn[0] = 'plugin';
-        $editbtn[1] = array(
-            'include_editbtn',
-             array($title)
-        );
+        $editbtn = $this->pluginInstruction('include_editbtn', [$title]);
         $ins[] = $editbtn;
     }
 
@@ -725,7 +722,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             $ins = array_slice($ins, $offset, $length);
             // store the end position in the include_closelastsecedit instruction
             // so it can generate a matching button
-            $ins[] = array('plugin', array('include_closelastsecedit', array($endpos)));
+            $ins[] = $this->pluginInstruction('include_closelastsecedit', [$endpos]);
         }
     } 
 
@@ -757,12 +754,12 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             if (($first_sect) && ($ins[$i][0] == 'section_open')) {
                 $ins = array_slice($ins, 0, $first_sect);
                 if ($flags['readmore']) {
-                    $ins[] = array('plugin', array('include_readmore', array($page)));
+                    $ins[] = $this->pluginInstruction('include_readmore', [$page]);
                 }
-                $ins[] = array('section_close', array());
+                $ins[] = array('section_close', []);
                 // store the end position in the include_closelastsecedit instruction
                 // so it can generate a matching button
-                $ins[] = array('plugin', array('include_closelastsecedit', array($endpos)));
+                $ins[] = $this->pluginInstruction('include_closelastsecedit', [$endpos]);
                 return;
             }
         }
@@ -771,11 +768,11 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
 
 
     /**
-     * Build instruction item for syntax plugin components
+     * Build an instruction item for syntax plugin components
      *
      * @author Satoshi Sahara <sahara.satoshi@gmail.com>
      */
-    function pluginInstruction($method, array $params) {
+    function pluginInstruction($method, array $params, $pos=null) {
         $instruction = [];
         $instruction[0] = 'plugin';
         $instruction[1] = [$method, (array)$params];
