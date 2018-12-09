@@ -264,6 +264,31 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
     var $includes  = array(); // deprecated - compatibility code for the blog plugin
 
     /**
+     * Build a DokuWiki standard instruction array
+     *
+     * @author Satoshi Sahara <sahara.satoshi@gmail.com>
+     * @see also https://www.dokuwiki.org/devel:parser#instructions_data_format
+     */
+    private function dwInstruction($method, array $params, $pos=null) {
+        $instruction = [];
+        $instruction[0] = $method;
+        $instruction[1] = (array)$params;
+        if (isset($pos)) {
+            $instruction[2] = $pos;
+        }
+        return $instruction;
+    }
+
+    /**
+     * Build an instruction array for syntax plugin components
+     *
+     * @author Satoshi Sahara <sahara.satoshi@gmail.com>
+     */
+    private function pluginInstruction($method, array $params, $pos=null) {
+        return $this->dwInstruction('plugin',[$method, $params], $pos);
+    }
+
+    /**
      * Returns the converted instructions of a give page/section
      *
      * @author Michael Klier <chi@chimeric.de>
@@ -764,22 +789,6 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             }
         }
     }
-
-
-
-    /**
-     * Build an instruction item for syntax plugin components
-     *
-     * @author Satoshi Sahara <sahara.satoshi@gmail.com>
-     */
-    function pluginInstruction($method, array $params, $pos=null) {
-        $instruction = [];
-        $instruction[0] = 'plugin';
-        $instruction[1] = [$method, (array)$params];
-        return $instruction;
-    }
-
-
 
     /**
      * Gives a list of pages for a given include statement
