@@ -314,18 +314,18 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                     $title = '';
                 }
                 if ($flags['parlink']) {
-                    $ins = array(
-                        array('p_open', array()),
-                        array('internallink', array(':'.$key, $title)),
-                        array('p_close', array()),
-                    );
+                    $ins = [
+                        $this->dwInstruction('p_open',[]),
+                        $this->dwInstruction('internallink',[':'.$key, $title]),
+                        $this->dwInstruction('p_close',[]),
+                    ];
                 } else {
-                    $ins = array(
-                        array('internallink', array(':'.$key, $title)),
-                    );
+                    $ins = [
+                        $this->dwInstruction('internallink',[':'.$key, $title]),
+                    ];
                 }
             }else {
-                $ins = array();
+                $ins = [];
             }
             return $ins;
         }
@@ -338,7 +338,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             $ins = p_cached_instructions(wikiFN($page), false, $page);
             $ID = $backupID;
         } else {
-            $ins = array();
+            $ins = [];
         }
 
         $this->_convert_instructions($ins, $lvl, $page, $sect, $flags, $root_id, $included_pages);
@@ -549,8 +549,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         // wrap content at the beginning of the include that is not in a section in a section
         if ($lvl > 0 && $section_close_at !== 0 && $flags['indent'] && !$flags['inline']) {
             if ($section_close_at === false) {
-                $ins[] = array('section_close', []);
-                array_unshift($ins, array('section_open', [$lvl]));
+                $ins[] = $this->dwInstruction('section_close',[]);
+                array_unshift($ins, $this->dwInstruction('section_open',[$lvl]));
             } else {
                 $section_close_idx = array_search($section_close_at, array_keys($ins));
                 if ($section_close_idx > 0) {
@@ -558,34 +558,32 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                     $after_ins = array_slice($ins, $section_close_idx);
                     $ins = array_merge(
                         $before_ins,
-                        array(array('section_close', [])),
+                        array($this->dwInstruction('section_close',[])),
                         $after_ins
                     );
-                    array_unshift($ins, array('section_open', [$lvl]));
+                    array_unshift($ins, $this->dwInstruction('section_open',[$lvl]));
                 }
             }
         }
 
         // add instructions entry wrapper
-        $include_secid = (isset($flags['include_secid']) ? $flags['include_secid'] : null);
+        $include_secid = isset($flags['include_secid']) ? $flags['include_secid'] : null;
         array_unshift($ins, $this->pluginInstruction(
             'include_wrap', ['open', $page, $flags['redirect'], $include_secid]
         ));
-
-        if (isset($flags['beforeeach'])) {
-            array_unshift($ins, array('entity', array($flags['beforeeach'])));
-        }
-
         array_push($ins, $this->pluginInstruction('include_wrap', ['close']));
 
+        if (isset($flags['beforeeach'])) {
+            array_unshift($ins, $this->dwInstruction('entity',[$flags['beforeeach']]));
+        }
         if (isset($flags['aftereach'])) {
-            array_push($ins, array('entity', array($flags['aftereach'])));
+            array_push($ins, $this->dwInstruction('entity',[$flags['aftereach']]));
         }
 
         // close previous section if any and re-open after inclusion
         if ($lvl != 0 && $this->sec_close && !$flags['inline']) {
-            array_unshift($ins, array('section_close', []));
-            $ins[] = array('section_open', [$lvl]);
+            array_unshift($ins, $this->dwInstruction('section_close',[]));
+            $ins[] = $this->dwInstruction('section_open',[$lvl]);
         }
     }
 
@@ -781,7 +779,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                 if ($flags['readmore']) {
                     $ins[] = $this->pluginInstruction('include_readmore', [$page]);
                 }
-                $ins[] = array('section_close', []);
+                $ins[] = $this->dwInstruction('section_close',[]);
                 // store the end position in the include_closelastsecedit instruction
                 // so it can generate a matching button
                 $ins[] = $this->pluginInstruction('include_closelastsecedit', [$endpos]);
