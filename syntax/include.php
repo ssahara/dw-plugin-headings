@@ -123,7 +123,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      * @author Michael Hamann <michael@content-space.de>
      */
     function render($format, Doku_Renderer $renderer, $data) {
-        global $ACT, $ID;
+        global $ACT, $ID, $conf;
 
         // get data, of which $level has set in PARSER_HANDLER_DONE event handler
         [$mode, $page, $sect, $flags, $level, $pos, $extra] = $data;
@@ -154,6 +154,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
 
         $flags = $includeHelper->get_flags($flags);
 
+        // get included pages, of which each item has keys: id, exists, parent_id
         $pages = $this->_get_included_pages($mode, $page, $sect, $parent_id, $flags);
 
         if ($format == 'metadata') {
@@ -225,7 +226,6 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             }
 
             if (!$flags['editbtn']) {
-                global $conf;
                 [$conf['maxseclevel'], $maxseclevel_org] = [0, $conf['maxseclevel']];
             }
             $renderer->nest($instructions);
@@ -261,6 +261,31 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
 
     var $sec_close = true;
     var $includes  = array(); // deprecated - compatibility code for the blog plugin
+
+    /**
+     * Build a DokuWiki standard instruction array
+     *
+     * @author Satoshi Sahara <sahara.satoshi@gmail.com>
+     * @see also https://www.dokuwiki.org/devel:parser#instructions_data_format
+     */
+    private function dwInstruction($method, array $params, $pos=null) {
+        $instruction = [];
+        $instruction[0] = $method;
+        $instruction[1] = (array)$params;
+        if (isset($pos)) {
+            $instruction[2] = $pos;
+        }
+        return $instruction;
+    }
+
+    /**
+     * Build an instruction array for syntax plugin components
+     *
+     * @author Satoshi Sahara <sahara.satoshi@gmail.com>
+     */
+    private function pluginInstruction($method, array $params, $pos=null) {
+        return $this->dwInstruction('plugin',[$method, $params], $pos);
+    }
 
     /**
      * Returns the converted instructions of a give page/section
