@@ -777,36 +777,50 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      * @author Michael Klier <chi@chimeric.de>
      */
     function _get_firstsec(&$ins, $page, $flags) {
-        $num = count($ins);
-        $first_sect = false;
+        $header_found  = null;
+        $section_close = null;
+        $more_sections = false;
         $endpos = null; // end position in the input text
-        for ($i = 0; $i < $num; $i++) {
-            if ($ins[$i][0] == 'section_close') {
-                $first_sect = $i;
+
+        foreach ($ins as $k => $instruction) {
+            switch ($instruction[0]) {
+                case 'section_close':
+                   $section_close = $k;
+                    break;
+                case 'header':
+                    $header_found = $header_found ?? $k;
+                    /*
+                     * Store the position of the last header that is encountered.
+                     * As section_close/open-instructions are always found around header
+                     * instruction (unless some plugin modifies this), this means that
+                     * the last position that is stored here is exactly the position
+                     * of the section_close/open at which the content is truncated.
+                     */
+                    $endpos = $instruction[1][2];
+                    break;
+                case 'section_open':
+                    if (isset($section_close)) {
+                        $more_sections = true;
+                        break 2;
+                    }
+                    break;
+            } // end of switch
+        }
+
+        if (isset($header_found, $section_close)) {
+            $section_close_instruction = $ins[$section_close];
+
+            $ins = array_slice($ins, $header_found, ($section_close - $header_found));
+            if ($flags['readmore'] && $more_sections) {
+                $ins[] = $this->pluginInstruction('include_readmore',[$page]);
             }
-            if ($ins[$i][0] == 'header') {
-                /*
-                 * Store the position of the last header that is encountered.
-                 * As section_close/open-instruction are always (unless some plugin
-                 * modifies this) around a header instruction this means that the last
-                 * position that is stored here is exactly the position of 
-                 * the section_close/open at which the content is truncated.
-                 */
-                $endpos = $ins[$i][1][2];
-            }
-            // only truncate the content and add the read more link when there is really
-            // more than that first section
-            if (($first_sect) && ($ins[$i][0] == 'section_open')) {
-                $ins = array_slice($ins, 0, $first_sect);
-                if ($flags['readmore']) {
-                    $ins[] = $this->pluginInstruction('include_readmore',[$page]);
-                }
-                $ins[] = $this->dwInstruction('section_close',[]);
-                // store the end position in the include_closelastsecedit instruction
-                // so it can generate a matching button
-                $ins[] = $this->pluginInstruction('include_closelastsecedit',[$endpos]);
-                return;
-            }
+            $ins[] = $section_close_instruction;
+            // store the end position in the include_closelastsecedit instruction
+            // so it can generate a matching button
+            $ins[] = $this->pluginInstruction('include_closelastsecedit',[$endpos]);
+        } else {
+            // no section found, $ins has not modified nor truncated.
+            return;
         }
     }
 
