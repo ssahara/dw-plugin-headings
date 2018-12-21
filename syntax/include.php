@@ -722,44 +722,54 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
     }
 
     /** 
-     * Get a section including its subsections 
+     * Get a section including its subsections
      *
      * @author Michael Klier <chi@chimeric.de>
      */ 
-    function _get_section(&$ins, $sect) {
-        $num = count($ins);
-        $offset = null;
-        $lvl    = null;
-        $length = null;
+    function _get_section(&$ins, $sect, $strict=false) {
+        $header_found  = null;
+        $section_close = null;
+        $level  = null;
         $endpos = null; // end position in the input text, needed for section edit buttons
 
         $check = []; // used for sectionID() in order to get the same ids as the xhtml renderer
 
-        for ($i = 0; $i < $num; $i++) {
-            if ($ins[$i][0] == 'header') {
-                // find the right header
-                if (!isset($offset, $lvl) && (sectionID($ins[$i][1][0], $check) == $sect)) {
-                    $offset = $i;
-                    $lvl    = $ins[$i][1][1];
-                    continue;
-                }
-                // find end position for the section edit button, if the right header has found
-                if (isset($offset, $lvl) && ($ins[$i][1][1] <= $lvl)) {
-                    $length = $i - $offset;
-                    $endpos = $ins[$i][1][2];
+        foreach ($ins as $k => $instruction) {
+            switch ($instruction[0]) {
+                case 'section_close':
+                    if (isset($header_found)) {
+                        $section_close = $k;
+                    }
                     break;
-                }
-            }
+                case 'header':
+                    $hid = sectionID($instruction[1][0], $check);
+
+                    // find the header
+                    if (!isset($header_found) && ($hid == $sect)) {
+                        $header_found = $k;
+                        $level = $instruction[1][1];
+                        break;
+                    }
+                    // find end position for the section edit button, if the header has found
+                    if (isset($header_found) && ($instruction[1][1] <= $level)) {
+                        $endpos = $instruction[1][2];
+                        break 2; // exit foreach loop
+                    }
+                    break;
+            } // end of switch
         }
-        $offset = isset($offset) ? $offset : 0;
-        $length = isset($length) ? $length : ($num - 1);
-        if(is_array($ins)) {
-            $ins = array_slice($ins, $offset, $length);
+
+        if (isset($header_found)) {
+            $ins = array_slice($ins, $header_found, ($section_close - $header_found +1));
             // store the end position in the include_closelastsecedit instruction
             // so it can generate a matching button
             $ins[] = $this->pluginInstruction('include_closelastsecedit',[$endpos]);
+        } elseif ($strict) {
+            // the section not found
+            // nothing in strict mode, otherwise all instructions will be renderd
+            $ins = [];
         }
-    } 
+    }
 
     /**
      * Only display the first section of a page and a readmore link
