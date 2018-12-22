@@ -173,7 +173,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         if ($format == 'xhtml' || $format == 'odt') {
             global $INFO;
           //$secids = p_get_metadata($ID, 'plugin_include secids');
-            $secids = $INFO['meta']['plugin_include']['secids'];
+            $secids = $INFO['meta']['plugin_include']['secids'] ?? [];
         }
 
         foreach ($pages as $page) {
@@ -642,82 +642,71 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      * @param string $page           The included page
      * @param array  $included_pages The array of pages that are included
      */
-    private function adapt_links(&$ins, $page, $included_pages = null) {
-        $num = count($ins);
+    private function adapt_links(&$ins, $page, $included_pages = []) {
         $ns  = getNS($page);
 
-        for ($i = 0; $i < $num; $i++) {
+        foreach ($ins as $k => &$instruction) {
             // adjust links with image titles
-            if (strpos($ins[$i][0], 'link') !== false
-                && isset($ins[$i][1][1]) && is_array($ins[$i][1][1])
-                && $ins[$i][1][1]['type'] == 'internalmedia'
+            if (strpos($instruction[0], 'link') !== false
+                && isset($instruction[1][1]['type'])
+                && $instruction[1][1]['type'] == 'internalmedia'
             ) {
                 // resolve relative ids, but without cleaning in order to preserve the name
-                $media_id = resolve_id($ns, $ins[$i][1][1]['src']);
+                $media_id = resolve_id($ns, $instruction[1][1]['src'], false);
                 // make sure that after resolving the link again it will be the same link
-                if ($media_id{0} != ':') $media_id = ':'.$media_id;
-                $ins[$i][1][1]['src'] = $media_id;
+                $instruction[1][1]['src'] = ':'.ltrim(':', $media_id);
             }
-            switch($ins[$i][0]) {
+            switch ($instruction[0]) {
                 case 'internallink':
                 case 'internalmedia':
                     // make sure parameters aren't touched
-                    $link_params = '';
-                    $link_id = $ins[$i][1][0];
-                    $link_parts = explode('?', $link_id, 2);
-                    if (count($link_parts) === 2) {
-                        $link_id = $link_parts[0];
-                        $link_params = $link_parts[1];
-                    }
+                    [$link_id, $link_params] = explode('?', $instruction[1][0], 2);
                     // resolve the id without cleaning it
                     $link_id = resolve_id($ns, $link_id, false);
                     // this id is internal (i.e. absolute) now, add ':' to make resolve_id work again
-                    if ($link_id{0} != ':') $link_id = ':'.$link_id;
+                    $link_id = ':'.ltrim(':', $link_id);
                     // restore parameters
-                    $ins[$i][1][0] = ($link_params != '') ? $link_id.'?'.$link_params : $link_id;
+                    $instruction[1][0] = ($link_params) ? $link_id.'?'.$link_params : $link_id;
 
-                    if ($ins[$i][0] == 'internallink' && !empty($included_pages)) {
+                    if ($instruction[0] == 'internallink' && !empty($included_pages)) {
                         // change links to included pages into local links
                         // only adapt links without parameters
-                        $link_id = $ins[$i][1][0];
-                        $link_parts = explode('?', $link_id, 2);
-                        if (count($link_parts) === 1) {
-                            $exists = false;
-                            resolve_pageid($ns, $link_id, $exists);
-
-                            $link_parts = explode('#', $link_id, 2);
-                            $hash = '';
-                            if (count($link_parts) === 2) {
-                                list($link_id, $hash) = $link_parts;
-                            }
-                            if (array_key_exists($link_id, $included_pages)) {
-                                if ($hash) {
-                                    // hopefully the hash is also unique in the including page
-                                    // (otherwise this might be the wrong link target)
-                                    $ins[$i][0] = 'locallink';
-                                    $ins[$i][1][0] = $hash;
-                                } else {
-                                    // the include section ids are different from normal section ids
-                                    // (so they won't conflict) but this also means that
-                                    // the normal locallink function can't be used
-                                    $ins[$i][0] = 'plugin';
-                                    $ins[$i][1] = array(
+                        [$link_id, $link_params] = explode('?', $instruction[1][0], 2);
+                        // get a full page id
+                        resolve_pageid($ns, $link_id, $exists);
+                        [$link_id, $hash ] = explode('#', $link_id, 2);
+                        if (array_key_exists($link_id, $included_pages)) {
+                            if ($hash) {
+                                // hopefully the hash is also unique in the including page
+                                // (otherwise this might be the wrong link target)
+                                $instruction[0] = 'locallink';
+                                $instruction[1][0] = $hash;
+                            } else {
+                                // the include section ids are different from normal section ids
+                                // (so they won't conflict) but this also means that
+                                // the normal locallink function can't be used
+                                $instruction[0] = 'plugin';
+                                $instruction[1] = array(
                                         'include_locallink',
-                                        array($included_pages[$link_id]['hid'], $ins[$i][1][1], $ins[$i][1][0])
-                                    );
-                                }
+                                        array(
+                                            $included_pages[$link_id]['hid'],
+                                            $instruction[1][1],
+                                            $instruction[1][0],
+                                        )
+                                );
                             }
                         }
                     }
                     break;
                 case 'locallink':
                     /* Convert local links to internal links if the page hasn't been fully included */
-                    if ($included_pages == null || !array_key_exists($page, $included_pages)) {
-                        $ins[$i][0] = 'internallink';
-                        $ins[$i][1][0] = ':'.$page.'#'.$ins[$i][1][0];
+                  //if ($included_pages == null || !array_key_exists($page, $included_pages)) {
+                    if (!array_key_exists($page, $included_pages)) {
+                        $instruction[0] = 'internallink';
+                        $instruction[1][0] = ':'.$page.'#'.$instruction[1][0];
                     }
                     break;
-            }
+            } // end of switch
         }
     }
 
