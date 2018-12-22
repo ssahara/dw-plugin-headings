@@ -381,47 +381,47 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
 
         $this->adapt_links($ins, $page, $included_pages);
 
-        for ($i = 0; $i < $num; $i++) {
-            switch ($ins[$i][0]) {
+        foreach ($ins as $k => &$instruction) {
+            switch ($instruction[0]) {
                 case 'document_start':
                 case 'document_end':
                 case 'section_edit':
-                    unset($ins[$i]);
+                    unset($ins[$k]);
                     break;
                 case 'header':
                     // get section title of first section
                     if ($sect && !$sect_title) {
-                        $sect_title = $ins[$i][1][0];
+                        $sect_title = $instruction[1][0];
                     }
                     // check if we need to skip the first header
                     if ((!$no_header) && $flags['noheader']) {
                         $no_header = true;
                     }
 
-                    $conv_idx[] = $i;
+                    $conv_idx[] = $k;
                     // get index of first header
-                    $first_header = ($first_header == -1) ? $i : -1;
+                    $first_header = ($first_header == -1) ? $k : -1;
                     // get max level of this instructions set
-                    if (!$lvl_max || ($ins[$i][1][1] < $lvl_max)) {
-                        $lvl_max = $ins[$i][1][1];
+                    if (!$lvl_max || ($instruction[1][1] < $lvl_max)) {
+                        $lvl_max = $instruction[1][1];
                     }
                     break;
                 case 'section_open':
                     if ($flags['inline'])
-                        unset($ins[$i]);
+                        unset($ins[$k]);
                     else
-                        $conv_idx[] = $i;
+                        $conv_idx[] = $k;
                     break;
                 case 'section_close':
                     if ($flags['inline'])
-                        unset($ins[$i]);
+                        unset($ins[$k]);
                     break;
                 case 'nest':
-                    $this->adapt_links($ins[$i][1][0], $page, $included_pages);
+                    $this->adapt_links($instruction[1][0], $page, $included_pages);
                     break;
                 case 'plugin':
                     // FIXME skip other plugins?
-                    switch ($ins[$i][1][0]) {
+                    switch ($instruction[1][0]) {
                         case 'tag_tag':                 // skip tags
                         case 'discussion_comments':     // skip comments
                         case 'linkback':                // skip linkbacks
@@ -429,12 +429,12 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                         case 'meta':                    // skip meta plugin
                         case 'indexmenu_tag':           // skip indexmenu sort tag
                         case 'include_sorttag':         // skip include plugin sort tag
-                            unset($ins[$i]);
+                            unset($ins[$k]);
                             break;
                         // adapt indentation level of nested includes
                         case 'include_include':
                             if (!$flags['inline'] && $flags['indent'])
-                                $ins[$i][1][1][4] += $lvl;
+                                $instruction[1][1][4] += $lvl;
                             break;
                         /*
                          * if there is already a closelastsecedit instruction (was added by
@@ -444,15 +444,15 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                          * on the levels, level adjustments, $no_header, ...)
                          */
                         case 'include_closelastsecedit':
-                            $endpos = $ins[$i][1][1][0];
-                            unset($ins[$i]);
+                            $endpos = $instruction[1][1][0];
+                            unset($ins[$k]);
                             break;
                     }
                     break;
                 default:
                     break;
-            }
-        }
+            } // end of switch
+        } // end of foreeach
 
         // calculate difference between header/section level and include level
         $diff = 0;
@@ -466,47 +466,47 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         $footer_lvl       = false;
         $contains_secedit = false;
         $section_close_at = false;
-        foreach ($conv_idx as $idx) {
-            if ($ins[$idx][0] == 'header') {
+        foreach ($conv_idx as $i) {
+            if ($ins[$i][0] == 'header') {
                 if ($section_close_at === false
-                    && isset($ins[$idx+1]) && $ins[$idx+1][0] == 'section_open'
+                    && isset($ins[$i+1]) && $ins[$i+1][0] == 'section_open'
                 ){
                     // store the index of the first heading that is followed by a new section
                     // the wrap plugin creates sections without section_open so the section
                     // shouldn't be closed before them
-                    $section_close_at = $idx;
+                    $section_close_at = $i;
                 }
 
                 if ($no_header && !$hdr_deleted) {
                     // ** ALTERNATIVE APPROACH in Heading PreProcessor (HPP) plugin **
                     // render the header as link anchor, instead delete it.
-                    $ins[$idx][1][3]['title'] = ''; // hidden header <a id=hid></a>
-                 // unset ($ins[$idx]);
+                    $ins[$i][1][3]['title'] = ''; // hidden header <a id=hid></a>
+                 // unset ($ins[$i]);
                     $hdr_deleted = true;
                     continue;
                 }
 
                 if ($flags['indent']) {
-                    $lvl_new = (($ins[$idx][1][1] + $diff) > 5) ? 5 : ($ins[$idx][1][1] + $diff);
-                    $ins[$idx][1][1] = $lvl_new;
+                    $lvl_new = (($ins[$i][1][1] + $diff) > 5) ? 5 : ($ins[$i][1][1] + $diff);
+                    $ins[$i][1][1] = $lvl_new;
                 }
 
-                if ($ins[$idx][1][1] <= $conf['maxseclevel'])
+                if ($ins[$i][1][1] <= $conf['maxseclevel'])
                     $contains_secedit = true;
 
                 // set permalink
-                if ($flags['link'] && !$has_permalink && ($idx == $first_header)) {
+                if ($flags['link'] && !$has_permalink && ($i == $first_header)) {
                     // make the first header a link to the included page/section
                     // for example: 
                     //   <h1 id="hid"><a href="url-to-included-page">Headline</a></h1>
                     // ** ALTERNATIVE APPROACH in Heading PreProcessor (HPP) plugin **
                     // disable this feature.
-                  //$this->_permalink($ins[$idx], $page, $sect, $flags);
+                  //$this->_permalink($ins[$i], $page, $sect, $flags);
                     $has_permalink = true;
                 }
 
                 // set footer level
-                if (!$footer_lvl && ($idx == $first_header) && !$no_header) {
+                if (!$footer_lvl && ($i == $first_header) && !$no_header) {
                     if ($flags['indent'] && isset($lvl_new)) {
                         $footer_lvl = $lvl_new;
                     } else {
@@ -516,8 +516,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             } else {
                 // it's a section
                 if ($flags['indent']) {
-                    $lvl_new = (($ins[$idx][1][0] + $diff) > 5) ? 5 : ($ins[$idx][1][0] + $diff);
-                    $ins[$idx][1][0] = $lvl_new;
+                    $lvl_new = (($ins[$i][1][0] + $diff) > 5) ? 5 : ($ins[$i][1][0] + $diff);
+                    $ins[$i][1][0] = $lvl_new;
                 }
 
                 // check if noheader is used and set the footer level to the first section
@@ -530,6 +530,9 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                 } 
             }
         }
+
+        // re-indexes the instructions, beacuse some of them may have dropped/unset
+        $ins = array_values($ins);
 
         // close last open section of the included page if there is any
         if ($contains_secedit) {
