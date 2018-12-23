@@ -205,7 +205,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                 unset($flags['include_secid']);
             }
 
-            $instructions = $this->_get_instructions($id, $sect, $mode, $level, $flags, $root_id, $secids);
+            $instructions = $this->_get_instructions($id, $sect, $level, $flags, $root_id, $secids);
 
             // store headers found in the instructions for complete tableofcontents
             // which is built later in PARSER_METADATA_RENDER event handler
@@ -293,7 +293,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      * @author Michael Klier <chi@chimeric.de>
      * @author Michael Hamann <michael@content-space.de>
      */
-    function _get_instructions($page, $sect, $mode, $lvl, $flags, $root_id=null, $included_pages=[]) {
+    function _get_instructions($page, $sect, $lvl, $flags, $root_id=null, $secids=[]) {
         $key = ($sect) ? $page . '#' . $sect : $page;
         $this->includes[$key] = true; // legacy code for keeping compatibility with other plugins
 
@@ -340,7 +340,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             $ins = [];
         }
 
-        $this->_convert_instructions($ins, $lvl, $page, $sect, $flags, $root_id, $included_pages);
+        $this->_convert_instructions($ins, $lvl, $page, $sect, $flags, $root_id, $secids);
         return $ins;
     }
 
@@ -357,7 +357,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      *
      * @author Michael Klier <chi@chimeric.de>
      */
-    function _convert_instructions(&$ins, $lvl, $page, $sect, $flags, $root_id, $included_pages=[]) {
+    function _convert_instructions(&$ins, $lvl, $page, $sect, $flags, $root_id, $secids=[]) {
         global $conf;
 
         // filter instructions if needed
@@ -379,7 +379,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         $sect_title = false;
         $endpos     = null;  // end position of the raw wiki text
 
-        $this->adapt_links($ins, $page, $included_pages);
+        $this->adapt_links($ins, $page, $secids);
 
         foreach ($ins as $k => &$instruction) {
             switch ($instruction[0]) {
@@ -417,7 +417,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                         unset($ins[$k]);
                     break;
                 case 'nest':
-                    $this->adapt_links($instruction[1][0], $page, $included_pages);
+                    $this->adapt_links($instruction[1][0], $page, $secids);
                     break;
                 case 'plugin':
                     // FIXME skip other plugins?
@@ -643,9 +643,9 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      *
      * @param array  $ins            The instructions that shall be adapted
      * @param string $page           The included page
-     * @param array  $included_pages The array of pages that are included
+     * @param array  $secids
      */
-    private function adapt_links(&$ins, $page, $included_pages = []) {
+    private function adapt_links(&$ins, $page, $secids = []) {
         $ns  = getNS($page);
 
         foreach ($ins as $k => &$instruction) {
@@ -671,14 +671,14 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                     // restore parameters
                     $instruction[1][0] = ($link_params) ? $link_id.'?'.$link_params : $link_id;
 
-                    if ($instruction[0] == 'internallink' && !empty($included_pages)) {
+                    if ($instruction[0] == 'internallink' && !empty($secids)) {
                         // change links to included pages into local links
                         // only adapt links without parameters
                         [$link_id, $link_params] = explode('?', $instruction[1][0], 2);
                         // get a full page id
                         resolve_pageid($ns, $link_id, $exists);
                         [$link_id, $hash ] = explode('#', $link_id, 2);
-                        if (array_key_exists($link_id, $included_pages)) {
+                        if (array_key_exists($link_id, $secids)) {
                             if ($hash) {
                                 // hopefully the hash is also unique in the including page
                                 // (otherwise this might be the wrong link target)
@@ -692,7 +692,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                                 $instruction[1] = array(
                                         'include_locallink',
                                         array(
-                                            $included_pages[$link_id]['hid'],
+                                            $secids[$link_id]['hid'],
                                             $instruction[1][1],
                                             $instruction[1][0],
                                         )
@@ -703,8 +703,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                     break;
                 case 'locallink':
                     /* Convert local links to internal links if the page hasn't been fully included */
-                  //if ($included_pages == null || !array_key_exists($page, $included_pages)) {
-                    if (!array_key_exists($page, $included_pages)) {
+                  //if ($isecids == null || !array_key_exists($page, $secids)) {
+                    if (!array_key_exists($page, $secids)) {
                         $instruction[0] = 'internallink';
                         $instruction[1][0] = ':'.$page.'#'.$instruction[1][0];
                     }
