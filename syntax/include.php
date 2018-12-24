@@ -225,6 +225,9 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                 } // end of foreach
             }
 
+            // add instructions entry wrapper
+            $this->_wrap_instructions($instructions, $level, $id, $flags);
+
             if (!$flags['editbtn']) {
                 [$conf['maxseclevel'], $maxseclevel_org] = [0, $conf['maxseclevel']];
             }
@@ -342,7 +345,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                 $this->_get_section($ins, $sect);   // section required
             }
             if ($flags['firstsec']) {
-                $this->_get_firstsec($ins, $page, $flags);  // only first section 
+                $this->_get_firstsec($ins, $page, $flags);  // only first section
             }
         } else {
             $ins = [];
@@ -455,7 +458,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
 
         // calculate difference between header/section level and include level
         $diff = 0;
-        if (!isset($lvl_max)) $lvl_max = 0; // if no level found in target, set to 0
+        $lvl_max = $lvl_max ?? 0; // if no level found in target, set to 0
         $diff = $lvl - $lvl_max + 1;
         if ($no_header) $diff -= 1;  // push up one level if "noheader"
 
@@ -573,7 +576,14 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         }
 
         // add instructions entry wrapper
-        $include_secid = isset($flags['include_secid']) ? $flags['include_secid'] : null;
+        //$this->_wrap_instructions($ins, $lvl, $page, $flags);
+    }
+
+    /**
+     * Add include entry wrapper for included instructions
+     */
+    function _wrap_instructions(&$ins, $lvl, $page, $flags) {
+        $include_secid = $flags['include_secid'] ?? null;
         array_unshift($ins, $this->pluginInstruction(
             'include_wrap',['open', $page, $flags['redirect'], $include_secid]
         ));
