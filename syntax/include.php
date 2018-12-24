@@ -199,12 +199,6 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                 }
             }
 
-            if (isset($secids[$id]) && $pos === $secids[$id]['pos']) {
-                $flags['include_secid'] = $secids[$id]['hid'];
-            } else {
-                unset($flags['include_secid']);
-            }
-
             $instructions = $this->_get_instructions($id, $sect, $level, $flags, $root_id, $secids);
 
             // store headers found in the instructions for complete tableofcontents
@@ -226,7 +220,12 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             }
 
             // add instructions entry wrapper
-            $this->_wrap_instructions($instructions, $level, $id, $flags);
+            if (isset($secids[$id]) && $pos === $secids[$id]['pos']) {
+                $secid = $secids[$id]['hid'];
+            } else {
+                $secid = null;
+            }
+            $this->_wrap_instructions($instructions, $level, $id, $secid, $flags);
 
             if (!$flags['editbtn']) {
                 [$conf['maxseclevel'], $maxseclevel_org] = [0, $conf['maxseclevel']];
@@ -582,8 +581,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
     /**
      * Add include entry wrapper for included instructions
      */
-    function _wrap_instructions(&$ins, $lvl, $page, $flags) {
-        $include_secid = $flags['include_secid'] ?? null;
+    function _wrap_instructions(&$ins, $lvl, $page, $secid, $flags) {
+        $include_secid = $secid;
         array_unshift($ins, $this->pluginInstruction(
             'include_wrap',['open', $page, $flags['redirect'], $include_secid]
         ));
@@ -654,7 +653,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      * @param string $page           The included page
      * @param array  $secids
      */
-    private function adapt_links(&$ins, $page, $secids = []) {
+    private function adapt_links(&$ins, $page, $secids=[]) {
         $ns  = getNS($page);
 
         foreach ($ins as $k => &$instruction) {
