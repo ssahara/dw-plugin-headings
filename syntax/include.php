@@ -336,6 +336,14 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             [$ID, $backupID] = [$page, $ID];
             $ins = p_cached_instructions(wikiFN($page), false, $page);
             $ID = $backupID;
+
+            // filter instructions if needed
+            if (!empty($sect)) {
+                $this->_get_section($ins, $sect);   // section required
+            }
+            if ($flags['firstsec']) {
+                $this->_get_firstsec($ins, $page, $flags);  // only first section 
+            }
         } else {
             $ins = [];
         }
@@ -359,15 +367,6 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      */
     function _convert_instructions(&$ins, $lvl, $page, $sect, $flags, $root_id, $secids=[]) {
         global $conf;
-
-        // filter instructions if needed
-        if(!empty($sect)) {
-            $this->_get_section($ins, $sect);   // section required
-        }
-
-        if($flags['firstsec']) {
-            $this->_get_firstsec($ins, $page, $flags);  // only first section 
-        }
 
         $ns  = getNS($page);
         $num = count($ins);
