@@ -186,8 +186,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         }
 
         foreach ($pages as $page) {
-            extract($page);
-            $id = $page['id'];
+          //extract($page);
+            $id     = $page['id'];
             $exists = $page['exists'];
 
             if (in_array($id, $page_stack)) continue;
@@ -215,7 +215,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             if ($format == 'metadata') {
                 foreach ($instructions as $instruction) {
                     if ($instruction[0] == 'header') {
-                        $metadata['tableofcontents'][$pos][] = [
+                        $metadata['tableofcontents'][$pos][$id][] = [
                             'hid'    => $instruction[1][0],
                             'level'  => $instruction[1][1],
                             'pos'    => $instruction[1][2],
@@ -228,7 +228,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                 } // end of foreach
             }
 
-            // add instructions entry wrapper
+            // add instructions entry wrapper for each page
             $secid = 'plugin_include__'.str_replace(':', '__', $id);
             $this->_wrap_instructions($instructions, $level, $id, $secid, $flags);
 

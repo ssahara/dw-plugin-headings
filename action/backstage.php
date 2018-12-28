@@ -123,10 +123,12 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
                 $page = $instruction[1][1][1];
                 $sect = $instruction[1][1][2];
                 // get headers from metadata that is stored by include syntax component
-                $included_headers = $metadata['tableofcontents'][$pos] ?? [];
-                foreach ($included_headers as $item) {
-                    $item['hid'] = sectionID($item['hid'], $headers);
-                    $tableofcontents[] = $item;
+                $data = $metadata['tableofcontents'][$pos] ?? [];
+                foreach ($data as $id => $included_headers) {
+                    foreach ($included_headers as $item) {
+                        $item['hid'] = sectionID($item['hid'], $headers);
+                        $tableofcontents[] = $item;
+                    }
                 }
             }
         } // end of foreach
