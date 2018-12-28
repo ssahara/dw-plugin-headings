@@ -133,12 +133,6 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             $renderer->doc .= '<code class="preview_note">'.$match.' '.$note.'</code>';
         }
 
-        if ($format == 'metadata') {
-            /** @var Doku_Renderer_metadata $renderer */
-            $renderer->meta['plugin_include'] = [];
-            $metadata =& $renderer->meta['plugin_include'];
-        }
-
         // static stack that records all ancestors of the child pages
         static $page_stack = [];
 
@@ -156,6 +150,16 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
 
         // get included pages, of which each item has keys: id, exists, parent_id
         $pages = $this->_get_included_pages($mode, $page, $sect, $parent_id, $flags);
+        unset($flags['order'], $flags['rsort']);
+
+        // "linkonly" mode: page/section inclusion does not required
+        if ($flags['linkonly']) {
+            // link only to the included pages instead of including the content
+            return $this->render_linkonly($renderer, $pages, $sect, $flags);
+        } else {
+            unset($flags['linkonly'], $flags['parlink']);
+        }
+
 
         if ($format == 'metadata') {
             // remove old persistent metadata of previous versions of the include plugin
@@ -164,6 +168,11 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                 unset($renderer->meta['plugin_include']);
             }
 
+            /** @var Doku_Renderer_metadata $renderer */
+            if (!isset($renderer->meta['plugin_include'])) {
+                $renderer->meta['plugin_include'] = [];
+            }
+            $metadata =& $renderer->meta['plugin_include'];
             $metadata['instructions'][] = compact('mode', 'page', 'sect', 'parent_id', $flags);
             $metadata['pages'] = array_merge( (array)$metadata['pages'], $pages);
             $metadata['include_content'] = isset($_REQUEST['include_content']);
@@ -189,7 +198,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                 $renderer->meta['relation']['references'][$id] = $exists;
                 $renderer->meta['relation']['haspart'][$id]    = $exists;
 
-                if (!$sect && !$flags['firstsec'] && !$flags['linkonly']
+                if (!$sect && !$flags['firstsec']
                     && !isset($metadata['secids'][$id])
                 ){
                     $metadata['secids'][$id] = [
@@ -220,11 +229,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             }
 
             // add instructions entry wrapper
-            if (isset($secids[$id]) && $pos === $secids[$id]['pos']) {
-                $secid = $secids[$id]['hid'];
-            } else {
-                $secid = null;
-            }
+            $secid = 'plugin_include__'.str_replace(':', '__', $id);
             $this->_wrap_instructions($instructions, $level, $id, $secid, $flags);
 
             if (!$flags['editbtn']) {
@@ -244,6 +249,45 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
 
         return true;
     }
+
+    /**
+     * Renders links to the included pages/sections instead of their contents
+     * 
+     * called when $flags['linkonly'] is on
+     */
+    function render_linkonly(Doku_Renderer $renderer, $pages, $sect=null, $flags) {
+        if (!$flags['linkonly']) return false;
+
+        foreach ($pages as $page) {
+            $id     = $sect ? $page['id'].'#'.$sect : $page['id'];
+            $exists = $page['exists'];
+
+            if ($flags['pageexists'] && !$page['exists']) {
+                continue;
+            } else {
+                if ($flags['title']) {
+                    $render = METADATA_RENDER_USING_SIMPLE_CACHE;
+                    $title = p_get_metadata($id,'title', $render);
+                } else {
+                    $title = '';
+                }
+                if ($flags['parlink']) {
+                    $instructions = [
+                        $this->dwInstruction('p_open',[]),
+                        $this->dwInstruction('internallink',[':'.$id, $title]),
+                        $this->dwInstruction('p_close',[]),
+                    ];
+                } else {
+                    $instructions = [
+                        $this->dwInstruction('internallink',[':'.$id, $title]),
+                    ];
+                }
+            }
+            $renderer->nest($instructions);
+        }
+        return true;
+    }
+
 
     /* --------------------------------------------------------------------- *
      * Combine Helper
@@ -290,45 +334,19 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
     }
 
     /**
-     * Returns the converted instructions of a give page/section
+     * Returns the converted instructions of a given page/section
      *
      * @author Michael Klier <chi@chimeric.de>
      * @author Michael Hamann <michael@content-space.de>
      */
     function _get_instructions($page, $sect, $lvl, $flags, $root_id=null, $secids=[]) {
-        $key = ($sect) ? $page . '#' . $sect : $page;
-        $this->includes[$key] = true; // legacy code for keeping compatibility with other plugins
+        $id = ($sect) ? $page.'#'.$sect : $page;
+        $this->includes[$id] = true; // legacy code for keeping compatibility with other plugins
 
         // keep compatibility with other plugins that don't know the $root_id parameter
         if (is_null($root_id)) {
             global $ID;
             $root_id = $ID;
-        }
-
-        // link only to the included pages instead of including the content
-        if ($flags['linkonly']) {
-            if (page_exists($page) || $flags['pageexists']  == 0) {
-                if ($flags['title']) {
-                    $render = METADATA_RENDER_USING_SIMPLE_CACHE;
-                    $title = p_get_metadata($page,'title', $render);
-                } else {
-                    $title = '';
-                }
-                if ($flags['parlink']) {
-                    $ins = [
-                        $this->dwInstruction('p_open',[]),
-                        $this->dwInstruction('internallink',[':'.$key, $title]),
-                        $this->dwInstruction('p_close',[]),
-                    ];
-                } else {
-                    $ins = [
-                        $this->dwInstruction('internallink',[':'.$key, $title]),
-                    ];
-                }
-            }else {
-                $ins = [];
-            }
-            return $ins;
         }
 
         if (page_exists($page)) {
@@ -371,7 +389,6 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         global $conf;
 
         $ns  = getNS($page);
-        $num = count($ins);
 
         $conv_idx = [];      // conversion index
         $lvl_max  = false;   // max level
@@ -557,8 +574,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         // wrap content at the beginning of the include that is not in a section in a section
         if ($lvl > 0 && $section_close_at !== 0 && $flags['indent'] && !$flags['inline']) {
             if ($section_close_at === false) {
-                $ins[] = $this->dwInstruction('section_close',[]);
                 array_unshift($ins, $this->dwInstruction('section_open',[$lvl]));
+                array_push($ins, $this->dwInstruction('section_close',[]));
             } else {
                 $section_close_idx = array_search($section_close_at, array_keys($ins));
                 if ($section_close_idx > 0) {
@@ -586,7 +603,9 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         array_unshift($ins, $this->pluginInstruction(
             'include_wrap',['open', $page, $flags['redirect'], $include_secid]
         ));
-        array_push($ins, $this->pluginInstruction('include_wrap',['close']));
+        array_push($ins, $this->pluginInstruction(
+            'include_wrap',['close']
+        ));
 
         if (isset($flags['beforeeach'])) {
             array_unshift($ins, $this->dwInstruction('entity',[$flags['beforeeach']]));
@@ -598,7 +617,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         // close previous section if any and re-open after inclusion
         if ($lvl != 0 && $this->sec_close && !$flags['inline']) {
             array_unshift($ins, $this->dwInstruction('section_close',[]));
-            $ins[] = $this->dwInstruction('section_open',[$lvl]);
+            array_push($ins, $this->dwInstruction('section_open',[$lvl]));
         }
     }
 
