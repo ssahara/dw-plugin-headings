@@ -128,6 +128,10 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         // get data, of which $level has set in PARSER_HANDLER_DONE event handler
         [$mode, $page, $sect, $flags, $level, $pos, $extra] = $data;
 
+        static $includeHelper;
+        isset($includeHelper) || $includeHelper = $this->loadHelper('include', true);
+        $flags = $includeHelper->get_flags($flags);
+
         if ($format == 'xhtml' && $ACT == 'preview') {
             [$match, $note] = $extra;
             $renderer->doc .= '<code class="preview_note">'.$match.' '.$note.'</code>';
@@ -143,11 +147,6 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         $root_id = $page_stack[0];
 
 
-        static $includeHelper;
-        isset($includeHelper) || $includeHelper = $this->loadHelper('include', true);
-
-        $flags = $includeHelper->get_flags($flags);
-
         // get included pages, of which each item has keys: id, exists, parent_id
         $pages = $this->_get_included_pages($mode, $page, $sect, $parent_id, $flags);
         unset($flags['order'], $flags['rsort']);
@@ -160,6 +159,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             unset($flags['linkonly'], $flags['parlink']);
         }
 
+        $toc = []; // partial toc that correspond to the include instruction
 
         if ($format == 'metadata') {
             // remove old persistent metadata of previous versions of the include plugin
@@ -176,13 +176,10 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             $metadata['instructions'][] = compact('mode', 'page', 'sect', 'parent_id', $flags);
             $metadata['pages'] = array_merge( (array)$metadata['pages'], $pages);
             $metadata['include_content'] = isset($_REQUEST['include_content']);
-        }
-
-        $secids = [];
-        if ($format == 'xhtml' || $format == 'odt') {
+        } else {
+            // $format == 'xhtml'
             global $INFO;
-          //$secids = p_get_metadata($ID, 'plugin_include secids');
-            $secids = $INFO['meta']['plugin_include']['secids'] ?? [];
+            $toc = $INFO['meta']['plugin_include']['tableofcontents'][$pos];
         }
 
         foreach ($pages as $page) {
@@ -197,18 +194,9 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                 // add references for backlink
                 $renderer->meta['relation']['references'][$id] = $exists;
                 $renderer->meta['relation']['haspart'][$id]    = $exists;
-
-                if (!$sect && !$flags['firstsec']
-                    && !isset($metadata['secids'][$id])
-                ){
-                    $metadata['secids'][$id] = [
-                        'hid' => 'plugin_include__'.str_replace(':', '__', $id),
-                        'pos' => $pos,
-                    ];
-                }
             }
 
-            $instructions = $this->_get_instructions($id, $sect, $level, $flags, $root_id, $secids);
+            $instructions = $this->_get_instructions($id, $sect, $level, $flags, $root_id, $pos);
 
             // store headers found in the instructions for complete tableofcontents
             // which is built later in PARSER_METADATA_RENDER event handler
@@ -339,7 +327,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      * @author Michael Klier <chi@chimeric.de>
      * @author Michael Hamann <michael@content-space.de>
      */
-    function _get_instructions($page, $sect, $lvl, $flags, $root_id=null, $secids=[]) {
+    function _get_instructions($page, $sect, $lvl, $flags, $root_id=null, $pos) {
         $id = ($sect) ? $page.'#'.$sect : $page;
         $this->includes[$id] = true; // legacy code for keeping compatibility with other plugins
 
@@ -355,7 +343,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             // will save data for the wrong page
             [$ID, $backupID] = [$page, $ID];
             $ins = p_cached_instructions(wikiFN($page), false, $page);
-            $ID = $backupID;
+            [$ID, $backupID] = [$backupID, null];
 
             // filter instructions if needed
             if (!empty($sect)) {
@@ -368,7 +356,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             $ins = [];
         }
 
-        $this->_convert_instructions($ins, $lvl, $page, $sect, $flags, $root_id, $secids);
+        $this->_convert_instructions($ins, $lvl, $page, $sect, $flags, $root_id, $pos);
         return $ins;
     }
 
@@ -385,7 +373,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      *
      * @author Michael Klier <chi@chimeric.de>
      */
-    function _convert_instructions(&$ins, $lvl, $page, $sect, $flags, $root_id, $secids=[]) {
+    function _convert_instructions(&$ins, $lvl, $page, $sect, $flags, $root_id, $pos) {
         global $conf;
 
         $ns  = getNS($page);
@@ -397,7 +385,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         $sect_title = false;
         $endpos     = null;  // end position of the raw wiki text
 
-        $this->adapt_links($ins, $page, $secids);
+        $this->adapt_links($ins, $page, $root_id, $pos);
 
         foreach ($ins as $k => &$instruction) {
             switch ($instruction[0]) {
@@ -435,7 +423,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                         unset($ins[$k]);
                     break;
                 case 'nest':
-                    $this->adapt_links($instruction[1][0], $page, $secids);
+                    $this->adapt_links($instruction[1][0], $page, $root_id, $pos);
                     break;
                 case 'plugin':
                     // FIXME skip other plugins?
@@ -670,9 +658,35 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      *
      * @param array  $ins            The instructions that shall be adapted
      * @param string $page           The included page
-     * @param array  $secids
+     * @param string $root_id        The including page
+     * @param array  $pos            The byte position in including page
      */
-    private function adapt_links(&$ins, $page, $secids=[]) {
+    private function adapt_links(&$ins, $page, $root_id, $pos) {
+
+        global $INFO;
+        if (isset($INFO['id']) && $INFO['id'] == $root_id) {
+            // Note: $INFO is not available in render metadata stage
+            $toc = $INFO['meta']['plugin_include']['tableofcontents'][$pos] ?? [];
+        } else {
+            $toc = [];
+        }
+
+        /* 何を処理するか？
+        1) 他ページの一部がインクルードされたことにより、
+           元ページでは到達可能であった locallink [[#hid]] のリンク先が
+           インクルードされていないケース
+           → internallink に修正する
+        2) 元ページで インクルード先ページへの internallink であった場合
+           インクルード先では ページ内でのリンクで済むケース
+           → locallink に修正する
+        3) 複数ページ/セクションがインクルードされていることがある
+           同一の include でインクルードされた部分への internallinkの場合
+           インクルード先では ページ内でのリンクで済むケース
+           → locallink に修正する
+           ページへのリンクの場合、リンク先はプラグイン側で用意したもの
+           local link hid= 'plugin_include__'.str_replace(':', '__', $id)
+        */
+
         $ns  = getNS($page);
 
         foreach ($ins as $k => &$instruction) {
@@ -698,40 +712,36 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                     // restore parameters
                     $instruction[1][0] = ($link_params) ? $link_id.'?'.$link_params : $link_id;
 
-                    if ($instruction[0] == 'internallink' && !empty($secids)) {
+                    if ($instruction[0] == 'internallink' && !empty($toc)) {
                         // change links to included pages into local links
                         // only adapt links without parameters
                         [$link_id, $link_params] = explode('?', $instruction[1][0], 2);
                         // get a full page id
                         resolve_pageid($ns, $link_id, $exists);
                         [$link_id, $hash ] = explode('#', $link_id, 2);
-                        if (array_key_exists($link_id, $secids)) {
+                        if (isset($toc[$link_id])) {
                             if ($hash) {
                                 // hopefully the hash is also unique in the including page
                                 // (otherwise this might be the wrong link target)
                                 $instruction[0] = 'locallink';
                                 $instruction[1][0] = $hash;
                             } else {
-                                // the include section ids are different from normal section ids
-                                // (so they won't conflict) but this also means that
-                                // the normal locallink function can't be used
-                                $instruction[0] = 'plugin';
-                                $instruction[1] = array(
-                                        'include_locallink',
-                                        array(
-                                            $secids[$link_id]['hid'],
-                                            $instruction[1][1],
-                                            $instruction[1][0],
-                                        )
-                                );
+                                // link to instructions entry wrapper (html)id for the page
+                                $hash = 'plugin_include__'.str_replace(':', '__', $link_id);
+                                $instruction[0] = 'locallink';
+                                $instruction[1][0] = $hash;
                             }
                         }
                     }
                     break;
                 case 'locallink':
-                    /* Convert local links to internal links if the page hasn't been fully included */
-                  //if ($isecids == null || !array_key_exists($page, $secids)) {
-                    if (!array_key_exists($page, $secids)) {
+                    // convert local links to internal links if destination not found in toc
+                    if (isset($toc[$page])) {
+                        $included_headers = array_column($toc[$page],'hid');
+                    } else {
+                        $included_headers = [];
+                    }
+                    if (!in_array($instruction[1][0], $included_headers)) {
                         $instruction[0] = 'internallink';
                         $instruction[1][0] = ':'.$page.'#'.$instruction[1][0];
                     }
