@@ -14,7 +14,7 @@ class syntax_plugin_headings_handler extends DokuWiki_Syntax_Plugin {
 
     function getType() { return 'baseonly'; }
     function getPType(){ return 'block'; }
-    function getSort() { return 45; }
+    function getSort() { return 49; } // less than Doku_Parser_Mode_header = 50
 
     /**
      * Connect pattern to lexer
@@ -31,7 +31,10 @@ class syntax_plugin_headings_handler extends DokuWiki_Syntax_Plugin {
     }
 
     function connectTo($mode) {
-        $this->Lexer->addSpecialPattern($this->pattern[0], $mode, $this->mode);
+        global $conf;
+        if ($conf['renderer_xhtml'] == 'headings') {
+            $this->Lexer->addSpecialPattern($this->pattern[0], $mode, $this->mode);
+        }
     }
 
     /**
