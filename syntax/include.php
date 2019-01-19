@@ -204,7 +204,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                 foreach ($instructions as $instruction) {
                     if ($instruction[0] == 'header') {
                         $metadata['tableofcontents'][$pos][$id][] = [
-                            'hid'    => $instruction[1][0],
+                            'hid'    => $instruction[1][3]['hid'],
                             'level'  => $instruction[1][1],
                             'pos'    => $instruction[1][2],
                             'number' => $instruction[1][3]['number'] ?? null,
@@ -771,7 +771,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                     }
                     break;
                 case 'header':
-                    $hid = sectionID($instruction[1][0], $check);
+                    $hid = sectionID($instruction[1][3]['hid'], $check);
 
                     // find the header
                     if (!isset($header_found) && ($hid == $sect)) {

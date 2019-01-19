@@ -35,6 +35,37 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
     }
 
 
+    /**
+     * Create a XHTML valid linkid from a given heading title
+     * allow '.' in linkid, which should be match #[a-z][a-z0-9._-]*#
+     *
+     * @see also DW original sectionID() method defined in inc/pageutils.php
+     */
+    private function sectionID($title, &$check) {
+        $title = str_replace(array(':'),'', cleanID($title));
+        // remove suffix number that appended for duplicated title in the page, like title_1
+        $title = preg_replace('/_[0-9]*$/','', $title);
+        $newtitle = ltrim($title,'0123456789._-');
+        if (empty($newtitle)) {
+            // here, title consists [0-9._-]
+            $title = 'section'.$title;
+        } else {
+            $title = $newtitle;
+        }
+
+        if (is_array($check)) {
+            // make sure tiles are unique
+            if (!array_key_exists ($title, $check)) {
+                $check[$title] = 0;
+            } else {
+                $check[$title]++; // increment counts
+                $title .= '_'.$check[$title]; // append '_' and count number to title
+                $check[$title] = 0;
+            }
+        }
+
+        return $title;
+    }
 
     /**
      * PARSER_HANDLER_DONE event handler
@@ -50,20 +81,23 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
         // rewrite header instructions
         foreach ($instructions as $k => &$instruction) {
             if ($instruction[0] == 'header') {
-                [$hid, $level, $pos] = $instruction[1];
+                [$title, $level, $pos] = $instruction[1];
                 if ($instructions[$k+2][1][0] == 'headings_handler') {
+                    $hid = sectionID($instructions[$k+2][1][1][4], $headers);
                     $extra = [
                         'number' => $instructions[$k+2][1][1][3],
+                        'hid'    => $hid,
                         'title'  => $instructions[$k+2][1][1][5],
                         'xhtml'  => $instructions[$k+2][1][1][6],
                     ];
                 } else {
+                    $hid = sectionID($title, $headers);
                     $extra = [
-                        'title'  => $hid,
+                        'hid'    => $hid,
+                        'title'  => $title,
                     ];
                 }
-                $hid = sectionID($hid, $headers);
-                $instruction[1] = [$hid, $level, $pos, $extra];
+                $instruction[1] = [$title, $level, $pos, $extra];
             }
         }
         unset($instruction);
@@ -105,9 +139,9 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
         foreach ($instructions as $instruction) {
             if ($instruction[0] == 'header') {
                 // update hid
-                $instruction[1][0] = sectionID($instruction[1][0], $headers);
+                $hid = sectionID($instruction[1][3]['hid'], $headers);
                 $tableofcontents[] = [
-                    'hid'    => $instruction[1][0],
+                    'hid'    => $hid,
                     'level'  => $instruction[1][1],
                     'pos'    => $instruction[1][2],
                     'number' => $instruction[1][3]['number'] ?? null,
@@ -119,7 +153,7 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
                 && $instruction[1][0] == 'headings_include'
                 && in_array($instruction[1][1][0], ['section','page']) // mode
             ){
-                $pos = $instruction[2];
+                $pos  = $instruction[2];
                 $page = $instruction[1][1][1];
                 $sect = $instruction[1][1][2];
                 // get headers from metadata that is stored by include syntax component

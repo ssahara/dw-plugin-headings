@@ -91,7 +91,7 @@ class syntax_plugin_headings_handler extends DokuWiki_Syntax_Plugin {
         $hid = $param ?: $title;
 
         // call header method of Doku_Handler class
-        $match = $markup . (strlen($hid) ? $hid : ' ') . $markup;
+        $match = $markup . (strlen($title) ? $title : ' ') . $markup;
         $handler->header($match, $state, $pos);
 
         // call render method of this plugin
