@@ -49,16 +49,40 @@ class syntax_plugin_headings_handler extends DokuWiki_Syntax_Plugin {
         $markup = str_repeat('=', 7 - $level);
 
         $text = trim($text, '= ');  // drop heading markup
+        $title = $text;
 
-        // speparate param from headings text
-        if (strpos($text, '|') !== false) {
-            [$param, $title] = array_map('trim', explode('|', $text, 2));
-        } else {
-            $param = '';
-            $title = trim($text);
+        // Pre-Processing: hierarchical numbering for headings, eg 1.2.3
+        // example usage ====#A1 headline text ====
+        // Note1: numbers may be numeric, or incrementable string such "A1"
+        // Note2: #! means set the header level as the first tier of numbering
+        $func_get_number = function (&$title) { // closure
+            if (preg_match('/^#!?[^ |]*/u', $title, $matches)) {
+                $number = substr($matches[0], 1);
+                $title = ltrim( substr($title, strlen($matches[0])) );
+                return $number;
+            } else {
+                return null;
+            }
+        };
+        if ($title[0] == '#') {
+          $number = $func_get_number($title);
         }
 
-        // pre-processing the heading text
+        // Pre-Processing: persistent hid for headings
+        // example usage ====hid | headline text ====
+        // example usage ====hid | #A1 headline text ====
+        // example usage ==== | headline text ====
+        if (strpos($title, '|') !== false) {
+            // speparate hid from headings text
+            [$hid, $title] = array_map('trim', explode('|', $title, 2));
+            if (!isset($number)) {
+                $number = $func_get_number($title);
+            } elseif (empty($hid) && isset($number)) {
+                $hid = '#'; // hid should be set using tiered number for the heading
+            }
+        }
+
+        // Pre-Processing the heading text
         // NOTE: common plugin function render_text()
         // output text string through the parser, allows DokuWiki markup to be used
         if ($title && $this->getConf('header_formatting')) {
@@ -76,19 +100,8 @@ class syntax_plugin_headings_handler extends DokuWiki_Syntax_Plugin {
             $xhtml = '';
         }
 
-        // param processing: hierarchical numbering for headings, eg 1.2.3
-        // Note1: numbers may be numeric, or string such "A1"
-        // Note2: #! means set the header level as the first tier of numbering
-        if ($param[0] == '#') {
-            // separate #number part, drop # from number
-            [$number, $param] = explode(' ', substr($param,1), 2);
-            $isFirstTier = ($number[0] == '!') ? true : false;
-        } else {
-            $number = null;
-        }
-
-        // param processing: persistent hid
-        $hid = $param ?: $title;
+        // fallback for persistent hid
+        // NOTE: hid should be set in PARSER_HANDLER_DONE event handler
 
         // call header method of Doku_Handler class
         $match = $markup . (strlen($title) ? $title : ' ') . $markup;

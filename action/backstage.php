@@ -24,7 +24,7 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
                 'PARSER_METADATA_RENDER', 'BEFORE', $this, 'extend_TableOfContents', ['before']
             );
             $controller->register_hook(
-                'PARSER_METADATA_RENDER', 'AFTER', $this, 'extend_TableOfContents', [], -100
+                'PARSER_METADATA_RENDER', 'AFTER',  $this, 'extend_TableOfContents', [], -100
             );
         }
         if ($this->getConf('tocDisplay') == 'disabled') {
@@ -41,7 +41,7 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
      *
      * @see also DW original sectionID() method defined in inc/pageutils.php
      */
-    private function sectionID($title, &$check) {
+    function sectionID($title, &$check) {
         $title = str_replace(array(':'),'', cleanID($title));
         // remove suffix number that appended for duplicated title in the page, like title_1
         $title = preg_replace('/_[0-9]*$/','', $title);
@@ -68,12 +68,57 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
     }
 
     /**
+     * Return numbering label for hierarchical headings, eg. 1.2.3
+     *
+     * @param int    $level   level of the heading
+     * @param string $number  incrementable string for the numbered headings,
+     *                        typically numeric, but also could be string such "A1"
+     * @param bool   $reset   flag to initialize headline counter
+     * @return string  tired numbering label for the heading
+     */
+    function _tiered_number($level, $number, $reset=false) {
+        static $headerCount, $firstTierLevel;
+
+        // initialize header counter, if necessary
+        if (!isset($headerCount) || $reset) {
+            $headerCount = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
+            $firstTierLevel = $this->getConf('numbering_firstTierLevel');
+        }
+        // set the first tier level if number string starts '!'
+        if ($number[0] == '!') {
+             $firstTierLevel = $level;
+             $number = substr($number, 1);
+        }
+        // set header counter for numbering
+        $headerCount[$level] = empty($number)
+            ? ++$headerCount[$level]  // increment counter
+            : $number;
+        // reset the number of the subheadings
+        for ($i = $level +1; $i <= 5; $i++) {
+            $headerCount[$i] = 0;
+        }
+        // build tiered number ex: 2.1, 1.
+        $tier = $level - $firstTierLevel +1;
+        $tiers = array_slice($headerCount, $firstTierLevel -1, $tier);
+        $tiered_number = implode('.', $tiers);
+        if (count($tiers) == 1) {
+            // append always tailing dot for single tiered number
+            $tiered_number .= '.';
+        }
+        return $tiered_number;
+    }
+
+
+    /**
      * PARSER_HANDLER_DONE event handler
      * 
      * Propagate extra information to xhtml renderer
      */
     function rewrite_header_instructions(Doku_Event $event) {
         global $ID;
+        static $id = '';
+        $reset = ($id !== $ID) ? true : false;
+        if ($reset) $id = $ID; // memorize current page
         $headers = []; // memory once used hid
 
         $instructions =& $event->data->calls;
@@ -81,23 +126,45 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
         // rewrite header instructions
         foreach ($instructions as $k => &$instruction) {
             if ($instruction[0] == 'header') {
-                [$title, $level, $pos] = $instruction[1];
+                // [$title, $level, $pos] = $instruction[1];
                 if ($instructions[$k+2][1][0] == 'headings_handler') {
-                    $hid = sectionID($instructions[$k+2][1][1][4], $headers);
+                    $data = $instructions[$k+2][1][1];
+                    [$page, $pos, $level, $number, $hid, $title, $xhtml] = $data;
+
+                    // get tiered number for the heading
+                    if (isset($number)) {
+                        $tiered_number = $this->_tiered_number($level, $number, $reset);
+                    }
+                    // append figure space (U+2007) after tiered number to distinguish title
+                    $numbered_title = ($title && $tiered_number)
+                        ? $tiered_number.' '.$title
+                        : $title;
+
+                    // set hid
+                    // NOTE: both hid and title might be empty for blank headline (eg === ===)
+                    if ($hid == '#') {
+                        $hid = (is_int($tiered_number[0]) ? 'section' : '').$tiered_number;
+                    } elseif (empty($hid)) {
+                        $hid = $title;
+                    }
+                    // ensure unique hid in the page
+                    $hid = sectionID($hid, $headers);
                     $extra = [
-                        'number' => $instructions[$k+2][1][1][3],
+                        'number' => $number,
                         'hid'    => $hid,
-                        'title'  => $instructions[$k+2][1][1][5],
-                        'xhtml'  => $instructions[$k+2][1][1][6],
+                        'title'  => $title,
+                        'xhtml'  => $xhtml,
                     ];
                 } else {
+                    [$title, $level, $pos] = $instruction[1];
+                    $numbered_title = $title;
                     $hid = sectionID($title, $headers);
                     $extra = [
                         'hid'    => $hid,
                         'title'  => $title,
                     ];
                 }
-                $instruction[1] = [$title, $level, $pos, $extra];
+                $instruction[1] = [$numbered_title, $level, $pos, $extra];
             }
         }
         unset($instruction);
