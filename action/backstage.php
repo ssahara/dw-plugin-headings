@@ -237,7 +237,8 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
         // set pagename
         $count_headers = count($tableofcontents);
         if ($count_headers && $tableofcontents[0]['title']) {
-            $event->data['current']['title'] = $tableofcontents[0]['title'];
+            $event->data['current']['title']
+                = $event->data['persistent']['title'] ?? $tableofcontents[0]['title'];
         }
 
         if ($count_toc != $count_headers) {
