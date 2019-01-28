@@ -76,13 +76,14 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
      * @param bool   $reset   flag to initialize headline counter
      * @return string  tired numbering label for the heading
      */
-    function _tiered_number($level, $number, $reset=false) {
+    function _tiered_number($level, $number, &$reset=false) {
         static $headerCount, $firstTierLevel;
 
         // initialize header counter, if necessary
         if (!isset($headerCount) || $reset) {
             $headerCount = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
             $firstTierLevel = $this->getConf('numbering_firstTierLevel');
+            $reset = false;
         }
         // set the first tier level if number string starts '!'
         if ($number[0] == '!') {
@@ -116,10 +117,11 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
      */
     function rewrite_header_instructions(Doku_Event $event) {
         global $ID;
-        static $id = '';
-        $reset = ($id !== $ID) ? true : false;
-        if ($reset) $id = $ID; // memorize current page
-        $headers = []; // memory once used hid
+        static $id = ''; // memory current page id
+        $headers = [];   // memory once used hid
+
+        // chcek whether headerCount[] in _tiered_number() need to initialize
+        $reset = ($id !== $ID) ? ($id = $ID) : false;
 
         $instructions =& $event->data->calls;
 

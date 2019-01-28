@@ -26,16 +26,11 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
     /**
      * Protected properties implemented in this own class
      */
-    protected $headerCount;
-    protected $firstTierLevel;
+    protected $headerCountInit = true;
 
     function __construct() {
      // $this->reset();
-     // $this->headerCount = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
-        $this->headerCount = array_fill(1, 5, 0);
-        $this->firstTierLevel = $this->getConf('numbering_firstTierLevel') ?: 1;
     }
-
 
     /**
      * Reset protected properties of class Doku_Renderer_xhtml
@@ -48,10 +43,8 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
         $this->store = '';
         $this->_counter = array();
 
-        // properties defined in class renderer_plugin_headings
-     // $this->headerCount = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
-        $this->headerCount = array_fill(1, 5, 0);
-        $this->startlevel  = $this->getConf('numbering_startlevel') ?: 1;
+        // properties defined in this class renderer_plugin_headings
+        $this->headerCountInit = true;
     }
 
     /**
@@ -81,12 +74,26 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
     function header($title, $level, $pos, $extra = []) {
         global $ACT, $INFO, $ID, $conf;
 
+        static $hpp; // headings preprocessor object
+        isset($hpp) || $hpp = plugin_load('action','headings_backstage');
+
         // import variables from extra array; $hid, $number, $title, $xhtml
         extract($extra);
 
         /*
          * EXPERIMENTAL: Render a formatted heading
          */
+        // get tiered number for the heading
+        if (isset($number)) {
+            $tiered_number = $hpp->_tiered_number($level, $number, $this->headerCountInit);
+        }
+        // append figure space (U+2007) after tiered number to distinguish title
+        $tiered_number .= ' '; // U+2007 figure space
+        if ($title && isset($number)) {
+            $title = $tiered_number . $title;
+            $xhtml = '<span class="tiered_number">'.$tiered_number.'</span>'.$xhtml;
+        }
+
         // creates a linkid from a heading
         $hid1 = sectionID($hid, $check = false);
         $hid = $this->_headerToLink($hid, true); // ensure unique hid
@@ -95,45 +102,13 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
             error_log($debug.' : duplicated hid ('.$hid1.') found in '.$ID);
         }
 
-        // add tiered numbers as indexes for hierarchical headings
-        // Note: numbers may be numeric, string such "A1"
-        if ($title || isset($number)) {
-            // set the first tier level if number string starts '!'
-            if ($number[0] == '!') {
-                 $this->firstTierLevel = $level;
-                 $number = substr($number, 1);
-            }
-            // set header counter for numbering
-            $this->headerCount[$level] = empty($number)
-                ? ++$this->headerCount[$level]  // increment counter
-                : $number;
-            // reset the number of the subheadings
-            for ($i = $level +1; $i <= 5; $i++) {
-                $this->headerCount[$i] = 0;
-            }
-            // build tiered number ex: 2.1, 1.
-            $tier = $level - $this->firstTierLevel +1;
-            $tiers = array_slice($this->headerCount, $this->firstTierLevel -1, $tier);
-            $tiered_number = implode('.', $tiers);
-            if (count($tiers) == 1) {
-                // append always tailing dot for single tiered number
-                $tiered_number .= '.';
-            }
-            // append figure space after tiered number to distinguish title
-            $tiered_number .= ' '; // U+2007 figure space
-            if ($title && isset($number)) {
-                $title = $tiered_number . $title;
-                $xhtml = '<span class="tiered_number">'.$tiered_number.'</span>'.$xhtml;
-            }
-        }
-
         // write anchor for empty or hidden/unvisible headings
         if (empty($title)) {
             $this->doc .= DOKU_LF.'<a id="'.$hid.'"></a>'.DOKU_LF;
             goto toc_here_check;
         }
 
-        //only add items within configured levels
+        // only add items within configured levels
         $this->toc_additem($hid, $title, $level);
 
         // adjust $node to reflect hierarchy of levels
