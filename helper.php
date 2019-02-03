@@ -63,9 +63,7 @@ class helper_plugin_headings extends DokuWiki_Plugin {
      */
     function toc_numbering(array $toc) {
 
-     // $headerCount = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
-        $headerCount = array_fill(1, 5, 0);
-        $firstTierLevel = $this->getConf('numbering_firstTierLevel') ?: 1;
+        $headerCountInit = true;
  
         foreach ($toc as $k => &$item) {
             $number =& $item['number'];
@@ -73,31 +71,13 @@ class helper_plugin_headings extends DokuWiki_Plugin {
             $title  =& $item['title'];
             $xhtml  =& $item['xhtml'];
 
-            if ($title || isset($number)) {
-                // set the first tier level if number string starts '!'
-                if ($number[0] == '!') {
-                    $firstTierLevel = $level;
-                    $number = substr($number, 1);
-                }
-                // set header counter for numbering
-                $headerCount[$level] = empty($number)
-                    ? ++$headerCount[$level]  // increment counter
-                    : $number;
-                // reset the number of the subheadings
-                for ($i = $level +1; $i <= 5; $i++) {
-                    $headerCount[$i] = 0;
-                }
-                // build tiered number ex: 2.1, 1.
-                $tier = $level - $firstTierLevel +1;
-                $tiers = array_slice($headerCount, $firstTierLevel -1, $tier);
-                $tiered_number = implode('.', $tiers);
-                if (count($tiers) == 1) {
-                    // append always tailing dot for single tiered number
-                    $tiered_number .= '.';
-                }
+            // get tiered number for the heading
+            if (isset($number)) {
+                $tiered_number = $this->_tiered_number($level, $number, $headerCountInit);
+
                 // append figure space after tiered number to distinguish title
                 $tiered_number .= ' '; // U+2007 figure space
-                if ($title && isset($number)) {
+                if ($title) {
                     $title = $tiered_number . $title;
                     $xhtml = '<span class="tiered_number">'.$tiered_number.'</span>'.$xhtml;
                 }

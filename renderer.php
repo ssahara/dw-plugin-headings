@@ -86,12 +86,13 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
         // get tiered number for the heading
         if (isset($number)) {
             $tiered_number = $hpp->_tiered_number($level, $number, $this->headerCountInit);
-        }
-        // append figure space (U+2007) after tiered number to distinguish title
-        $tiered_number .= ' '; // U+2007 figure space
-        if ($title && isset($number)) {
-            $title = $tiered_number . $title;
-            $xhtml = '<span class="tiered_number">'.$tiered_number.'</span>'.$xhtml;
+
+            // append figure space (U+2007) after tiered number to distinguish title
+            $tiered_number .= ' '; // U+2007 figure space
+            if ($title) {
+                $title = $tiered_number . $title;
+                $xhtml = '<span class="tiered_number">'.$tiered_number.'</span>'.$xhtml;
+            }
         }
 
         // creates a linkid from a heading
