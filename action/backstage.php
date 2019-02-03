@@ -36,81 +36,6 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
 
 
     /**
-     * Create a XHTML valid linkid from a given heading title
-     * allow '.' in linkid, which should be match #[a-z][a-z0-9._-]*#
-     *
-     * @see also DW original sectionID() method defined in inc/pageutils.php
-     */
-    function sectionID($title, &$check) {
-        $title = str_replace(array(':'),'', cleanID($title));
-        // remove suffix number that appended for duplicated title in the page, like title_1
-        $title = preg_replace('/_[0-9]*$/','', $title);
-        $newtitle = ltrim($title,'0123456789._-');
-        if (empty($newtitle)) {
-            // here, title consists [0-9._-]
-            $title = 'section'.$title;
-        } else {
-            $title = $newtitle;
-        }
-
-        if (is_array($check)) {
-            // make sure tiles are unique
-            if (!array_key_exists ($title, $check)) {
-                $check[$title] = 0;
-            } else {
-                $check[$title]++; // increment counts
-                $title .= '_'.$check[$title]; // append '_' and count number to title
-                $check[$title] = 0;
-            }
-        }
-
-        return $title;
-    }
-
-    /**
-     * Return numbering label for hierarchical headings, eg. 1.2.3
-     *
-     * @param int    $level   level of the heading
-     * @param string $number  incrementable string for the numbered headings,
-     *                        typically numeric, but also could be string such "A1"
-     * @param bool   $reset   flag to initialize headline counter
-     * @return string  tired numbering label for the heading
-     */
-    function _tiered_number($level, $number, &$reset=false) {
-        static $headerCount, $firstTierLevel;
-
-        // initialize header counter, if necessary
-        if (!isset($headerCount) || $reset) {
-            $headerCount = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
-            $firstTierLevel = $this->getConf('numbering_firstTierLevel');
-            $reset = false;
-        }
-        // set the first tier level if number string starts '!'
-        if ($number[0] == '!') {
-             $firstTierLevel = $level;
-             $number = substr($number, 1);
-        }
-        // set header counter for numbering
-        $headerCount[$level] = empty($number)
-            ? ++$headerCount[$level]  // increment counter
-            : $number;
-        // reset the number of the subheadings
-        for ($i = $level +1; $i <= 5; $i++) {
-            $headerCount[$i] = 0;
-        }
-        // build tiered number ex: 2.1, 1.
-        $tier = $level - $firstTierLevel +1;
-        $tiers = array_slice($headerCount, $firstTierLevel -1, $tier);
-        $tiered_number = implode('.', $tiers);
-        if (count($tiers) == 1) {
-            // append always tailing dot for single tiered number
-            $tiered_number .= '.';
-        }
-        return $tiered_number;
-    }
-
-
-    /**
      * PARSER_HANDLER_DONE event handler
      * 
      * Propagate extra information to xhtml renderer
@@ -119,6 +44,9 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
         global $ID;
         static $id = ''; // memory current page id
         $headers = [];   // memory once used hid
+
+        // load helper object
+        isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
 
         // chcek whether headerCount[] in _tiered_number() need to initialize
         $reset = ($id !== $ID) ? ($id = $ID) : false;
@@ -135,7 +63,7 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
 
                     // get tiered number for the heading
                     if (isset($number)) {
-                        $tiered_number = $this->_tiered_number($level, $number, $reset);
+                        $tiered_number = $hpp->_tiered_number($level, $number, $reset);
                     }
                     // append figure space (U+2007) after tiered number to distinguish title
                     $numbered_title = ($title && $tiered_number)

@@ -75,7 +75,7 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
         global $ACT, $INFO, $ID, $conf;
 
         static $hpp; // headings preprocessor object
-        isset($hpp) || $hpp = plugin_load('action','headings_backstage');
+        isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
 
         // import variables from extra array; $hid, $number, $title, $xhtml
         extract($extra);
