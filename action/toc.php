@@ -200,13 +200,19 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
             $toc = [];
         } else {
             // load helper object
-            isset($tocTweak) || $tocTweak = $this->loadHelper($this->getPluginName());
+            isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
+
+            foreach ($toc as $k => &$item) {
+                // set numbered heading title
+                $item = $hpp->set_numbered_title($item);
+            }
+            unset($item);
 
             // filter toc items, with toc numbering
             $toptoclevel = $metadata['toc']['toptoclevel'];
             $maxtoclevel = $metadata['toc']['maxtoclevel'];
-            $toc = $tocTweak->toc_numbering($toc);
-            $toc = $tocTweak->toc_filter($toc, $toptoclevel, $maxtoclevel);
+        //  $toc = $hpp->toc_numbering($toc);
+            $toc = $hpp->toc_filter($toc, $toptoclevel, $maxtoclevel);
 
             if (count($toc) < $conf['tocminheads']) {
                 $toc = [];

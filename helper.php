@@ -10,6 +10,62 @@ if(!defined('DOKU_INC')) die();
 class helper_plugin_headings extends DokuWiki_Plugin {
 
     /**
+     * Resolve extra instruction data relevant to heading properties
+     * Note: this should be applied during render proocess prior to
+     *       1) store metadata "description_tableofcentents",
+     *       2) render xhtml.
+     * used in action_plugin_headings_backstage::extend_TableOfContents(),
+     *         renderer_plugin_headings::header()
+     *
+     * @param array $extra  extra heading data, created in handler stage
+     * @param int   $level  level of the heading
+     * @param bool  $reset  flag to initialize headline counter
+     * @return  interpreted extra data
+     */
+    function resolve_extra_instruction(array $extra, $level, &$reset) {
+        $number =& $extra['number'] ?? null;
+        $hid    =& $extra['hid']    ?? null;
+        $title  =& $extra['title']  ?? null;
+        $xhtml  =& $extra['xhtml']  ?? null;
+
+        // get tiered number for the heading
+        $number = (isset($number))
+            ? $this->_tiered_number($level, $number, $reset)
+            : null;
+        // decide hid value, title text or tiered numbers
+        if ($hid == '#') {
+            $hid = (is_int($number[0]) ? 'section' : '').$number;
+        } elseif (empty($hid)) {
+            $hid = $title;
+        }
+        return $extra;
+    }
+
+    /**
+     * Set numbered heading title
+     * Note: don't store numbered title to metadata "description_tableofcentents".
+     * used in syntax_plugin_headings_toc::render_embeddedtoc(),
+     *         action_plugin_headings_toc::tpl_toc(),
+     *         renderer_plugin_headings::header()
+     *
+     * @param array $extra  extra heading data, created in handler stage
+     * @return  interpreted extra data
+     */
+    function set_numbered_title(array $extra) {
+        $number =& $extra['number'] ?? null;
+        $title  =& $extra['title']  ?? null;
+        $xhtml  =& $extra['xhtml']  ?? null;
+
+        // append figure space (U+2007) after tiered number to distinguish title
+        if ($title && isset($number)) {
+            $title = $number.' '.$title;
+            $xhtml = '<span class="tiered_number">'.$number.'</span> '.$xhtml;
+        }
+        return $extra;
+    }
+
+
+    /**
      * toc array filter
      */
     function toc_filter(array $toc, $topLv=null, $maxLv=null, $start_hid='', $depth=5) {
@@ -123,7 +179,9 @@ class helper_plugin_headings extends DokuWiki_Plugin {
         $tiered_number = implode('.', $tiers);
         if (count($tiers) == 1) {
             // append always tailing dot for single tiered number
-            $tiered_number .= '.';
+            if (strlen($tiered_number) == strspn($tiered_number,'1234567890')) {
+                $tiered_number .= '.';
+            }
         }
         return $tiered_number;
     }

@@ -38,6 +38,10 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
     function reset() {
         parent::reset();
         $this->doc = '';
+
+        // properties defined in class Doku_Renderer_xhtml
+        $this->toc = array();
+        $this->headers = array();
         $this->footnotes = array();
         $this->lastsecid = 0;
         $this->store = '';
@@ -78,30 +82,18 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
         isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
 
         // import variables from extra array; $hid, $number, $title, $xhtml
+        $extra = $hpp->resolve_extra_instruction($extra, $level, $this->headerCountInit);
+        $extra = $hpp->set_numbered_title($extra);
         extract($extra);
 
-        /*
-         * EXPERIMENTAL: Render a formatted heading
-         */
-        // get tiered number for the heading
-        if (isset($number)) {
-            $tiered_number = $hpp->_tiered_number($level, $number, $this->headerCountInit);
-
-            // append figure space (U+2007) after tiered number to distinguish title
-            $tiered_number .= ' '; // U+2007 figure space
-            if ($title) {
-                $title = $tiered_number . $title;
-                $xhtml = '<span class="tiered_number">'.$tiered_number.'</span>'.$xhtml;
-            }
-        }
-
         // creates a linkid from a heading
-        $hid1 = sectionID($hid, $check = false);
-        $hid = $this->_headerToLink($hid, true); // ensure unique hid
-        if ($hid != $hid1) {
-            $debug = strtoupper(get_class($this));
-            error_log($debug.' : duplicated hid ('.$hid1.') found in '.$ID);
-        }
+        $hid = $hpp->sectionID($hid, $this->headers);
+   //   $hid1 = sectionID($hid, $check = false);
+   //   $hid = $this->_headerToLink($hid, true); // ensure unique hid
+   //   if ($hid != $hid1) {
+   //       $debug = strtoupper(get_class($this));
+   //       error_log($debug.' : duplicated hid ('.$hid1.') found in '.$ID);
+   //   }
 
         // write anchor for empty or hidden/unvisible headings
         if (empty($title)) {

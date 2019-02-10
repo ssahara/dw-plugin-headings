@@ -225,16 +225,19 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin {
         if ($toc == null) $toc = [];
 
         // load helper object
-        isset($tocTweak) || $tocTweak = $this->loadHelper($this->getPluginName());
+        isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
 
         // filter toc items, with toc numbering
         $topLv = $tocProps['toptoclevel'];
         $maxLv = $tocProps['maxtoclevel'];
-        $toc = $tocTweak->toc_numbering($toc);
-        $toc = $tocTweak->toc_filter($toc, $topLv, $maxLv, $section);
+   //   $toc = $hpp->toc_numbering($toc);
+        $toc = $hpp->toc_filter($toc, $topLv, $maxLv, $section);
 
         // modify toc items directly within loop by reference
-        foreach ($toc as &$item) {
+        foreach ($toc as $k => &$item) {
+            // set numbered heading title
+            $item = $hpp->set_numbered_title($item);
+
             if ($page == $INFO['id']) {
                 // headings found in current page (internal link)
                 $item['url']  = '#'.$item['hid'];

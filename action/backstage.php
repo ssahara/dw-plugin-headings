@@ -16,7 +16,7 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
      * Register event handlers
      */
     function register(Doku_Event_Handler $controller) {
-        always: { // event handler hook must be executed "earlier" than default
+        always: {
             $controller->register_hook(
                'PARSER_HANDLER_DONE', 'BEFORE', $this, 'rewrite_header_instructions', []
             );
@@ -24,6 +24,7 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
                 'PARSER_METADATA_RENDER', 'BEFORE', $this, 'extend_TableOfContents', ['before']
             );
             $controller->register_hook(
+                // event handler hook must be executed "earlier" than default
                 'PARSER_METADATA_RENDER', 'AFTER',  $this, 'extend_TableOfContents', [], -100
             );
         }
@@ -56,29 +57,11 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
         // rewrite header instructions
         foreach ($instructions as $k => &$instruction) {
             if ($instruction[0] == 'header') {
-                // [$title, $level, $pos] = $instruction[1];
+                // [$text, $level, $pos] = $instruction[1];
+                $text = $instruction[1][0];
                 if ($instructions[$k+2][1][0] == 'headings_handler') {
                     $data = $instructions[$k+2][1][1];
                     [$page, $pos, $level, $number, $hid, $title, $xhtml] = $data;
-
-                    // get tiered number for the heading
-                    if (isset($number)) {
-                        $tiered_number = $hpp->_tiered_number($level, $number, $reset);
-                    }
-                    // append figure space (U+2007) after tiered number to distinguish title
-                    $numbered_title = ($title && $tiered_number)
-                        ? $tiered_number.' '.$title
-                        : $title;
-
-                    // set hid
-                    // NOTE: both hid and title might be empty for blank headline (eg === ===)
-                    if ($hid == '#') {
-                        $hid = (is_int($tiered_number[0]) ? 'section' : '').$tiered_number;
-                    } elseif (empty($hid)) {
-                        $hid = $title;
-                    }
-                    // ensure unique hid in the page
-                    $hid = sectionID($hid, $headers);
                     $extra = [
                         'number' => $number,
                         'hid'    => $hid,
@@ -86,15 +69,13 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
                         'xhtml'  => $xhtml,
                     ];
                 } else {
-                    [$title, $level, $pos] = $instruction[1];
-                    $numbered_title = $title;
-                    $hid = sectionID($title, $headers);
+                    [$text, $level, $pos] = $instruction[1];
                     $extra = [
                         'hid'    => $hid,
                         'title'  => $title,
                     ];
                 }
-                $instruction[1] = [$numbered_title, $level, $pos, $extra];
+                $instruction[1] = [$text, $level, $pos, $extra];
             }
         }
         unset($instruction);
@@ -126,24 +107,52 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
 
         $toc =& $event->data['current']['description']['tableofcontents'];
         $count_toc = is_array($toc) ? count($toc) : null;
+
         // retrieve from metadata
         $metadata =& $event->data['current']['plugin_include'];
+
+        static $hpp; // headings preprocessor object
+        isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
+
+        $headerCountInit = true;
         $headers = []; // memory once used hid
+
+        // クロージャー
+        $func_resolve_tocitem = function (array &$item, &$headerCountInit) {
+            extract($item);
+            // get tiered number for the heading
+            if (isset($number)) {
+                $tiered_number = $hpp->_tiered_number($level, $number, $headerCountInit);
+            }
+            // update hid
+            if ($hid == '#') {
+                $hid = (is_int($tiered_number[0]) ? 'section' : '').$tiered_number;
+            } elseif (empty($hid)) {
+                $hid = $title;
+            }
+            $item['number'] = $tiered_number;
+            $item['hid'] = sectionID($hid, $headers);
+        };
+
 
         // Generate tableofcontents based on instruction data
         $tableofcontents = [];
         $instructions = p_cached_instructions(wikiFN($ID), true, $ID) ?? [];
         foreach ($instructions as $instruction) {
             if ($instruction[0] == 'header') {
-                // update hid
-                $hid = sectionID($instruction[1][3]['hid'], $headers);
+                [$text, $level, $pos, $extra] = $instruction[1];
+                // import variables from extra array; $hid, $number, $title, $xhtml
+                $extra = $hpp->resolve_extra_instruction($extra, $level, $this->headerCountInit);
+                extract($extra);
+
+                $hid = $hpp->sectionID($hid, $headers);
                 $tableofcontents[] = [
                     'hid'    => $hid,
-                    'level'  => $instruction[1][1],
-                    'pos'    => $instruction[1][2],
-                    'number' => $instruction[1][3]['number'] ?? null,
-                    'title'  => $instruction[1][3]['title'] ?? '',
-                    'xhtml'  => $instruction[1][3]['xhtml'] ?? '',
+                    'level'  => $level, //$instruction[1][1]
+                    'pos'    => $pos,   //$instruction[1][2]
+                    'number' => $number ?? null,  // 階層番号文字列に変更する
+                    'title'  => $title, //$instruction[1][3]['title']
+                    'xhtml'  => $xhtml, //$instruction[1][3]['xhtml']
                     'type'   => 'ul',
                 ];
             } elseif ($instruction[0] == 'plugin'
@@ -157,8 +166,30 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
                 $data = $metadata['tableofcontents'][$pos] ?? [];
                 foreach ($data as $id => $included_headers) {
                     foreach ($included_headers as $item) {
-                        $item['hid'] = sectionID($item['hid'], $headers);
-                        $tableofcontents[] = $item;
+                        // import variables from an array into the current symbol table
+                        // [$hid, $level, $pos, $number, $title, $xhtml, $type] = array_values($item);
+                        extract($item);
+
+                        // get tiered number for the heading
+                        $tiered_number = (isset($number))
+                            ? $hpp->_tiered_number($level, $number, $this->headerCountInit)
+                            : null;
+                        // update hid
+                        if ($hid == '#') {
+                            $hid = (is_int($tiered_number[0]) ? 'section' : '').$tiered_number;
+                        } elseif (empty($hid)) {
+                            $hid = $title;
+                        }
+                        $hid = $hpp->sectionID($hid, $headers);
+                        $tableofcontents[] = [
+                            'hid'    => $hid,
+                            'level'  => $level, //$item['level']
+                            'pos'    => $pos,   //$item['pos']
+                            'number' => $tiered_number ?? null,  // 階層番号文字列に変更する
+                            'title'  => $title, //$item['title']
+                            'xhtml'  => $xhtml, //$item['xhtml']
+                            'type'   => 'ul',
+                        ];
                     }
                 }
             }
@@ -210,15 +241,24 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
         }
 
         $toc = $INFO['meta']['description']['tableofcontents'] ?? [];
-        foreach ($toc as $k => $item) {
+
+        // modify toc items directly within loop by reference
+        foreach ($toc as $k => &$item) {
             if (empty($item['title'])
                 || ($item['level'] < $conf['toptoclevel'])
                 || ($item['level'] > $conf['maxtoclevel'])
             ) {
                 unset($toc[$k]);
+            } elseif (isset($item['number'])) {
+                // set numbered heading title
+                // append figure space (U+2007) after tiered number to distinguish title
+                $item['title'] = $item['number'].' '.$item['title'];
+                $item['xhtml'] = '<span class="tiered_number">'.$item['number'].' </span>'
+                                .$item['xhtml'];
             }
             $item['level'] = $item['level'] - $conf['toptoclevel'] +1;
         }
+        unset($item);
         $event->data = (count($toc) < $conf['tocminheads']) ? [] : $toc;
     }
 }
