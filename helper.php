@@ -191,12 +191,21 @@ class helper_plugin_headings extends DokuWiki_Plugin {
      * Create a XHTML valid linkid from a given heading title
      * allow '.' in linkid, which should be match #[a-z][a-z0-9._-]*#
      *
+     * @param string $title  heading title or hid
+     * @param mixed  $check  flag, or array to memory once used hid
+     * @return string
      * @see also DW original sectionID() method defined in inc/pageutils.php
      */
     function sectionID($title, &$check) {
+        // Note: Generally, the heading title does not end with suffix number like "_1",
+        // however hid should be suffixed when necessary to identify duplicated title
+        // in the page. Here, we remove tailing suffix number from the title/hid
+        // that was appended by this method.
+        if (is_array($check)) {
+            $title = preg_replace('/_[0-9]*$/','', $title);
+        }
+
         $title = str_replace(array(':'),'', cleanID($title));
-        // remove suffix number that appended for duplicated title in the page, like title_1
-        $title = preg_replace('/_[0-9]*$/','', $title);
         $newtitle = ltrim($title,'0123456789._-');
         if (empty($newtitle)) {
             // here, title consists [0-9._-]
