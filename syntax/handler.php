@@ -43,6 +43,9 @@ class syntax_plugin_headings_handler extends DokuWiki_Syntax_Plugin {
     function handle($match, $state, $pos, Doku_Handler $handler) {
         global $ID;
 
+        static $hpp; // headings preprocessor object
+        isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
+
         // get level of the heading
         $text = trim($match);
         $level = 7 - min(strspn($text, '='), 6);
@@ -101,7 +104,10 @@ class syntax_plugin_headings_handler extends DokuWiki_Syntax_Plugin {
         }
 
         // fallback for persistent hid
-        // NOTE: hid should be set in PARSER_HANDLER_DONE event handler
+        // NOTE: unique hid should be set in PARSER_HANDLER_DONE event handler
+        if (!isset($hid)) {
+            $hid = $hpp->sectionID($title, $check=[]);
+        }
 
         // call header method of Doku_Handler class
         $match = $markup . (strlen($title) ? $title : ' ') . $markup;

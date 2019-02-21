@@ -117,36 +117,49 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
         $headerCountInit = true;
         $headers = []; // memory once used hid
 
-        // クロージャー
-        $func_resolve_tocitem = function (array &$item, &$headerCountInit) {
-            extract($item);
-            // get tiered number for the heading
-            if (isset($number)) {
-                $tiered_number = $hpp->_tiered_number($level, $number, $headerCountInit);
-            }
-            // update hid
-            if ($hid == '#') {
-                $hid = (is_int($tiered_number[0]) ? 'section' : '').$tiered_number;
-            } elseif (empty($hid)) {
-                $hid = $title;
-            }
-            $item['number'] = $tiered_number;
-            $item['hid'] = sectionID($hid, $headers);
-        };
-
-
-        // Generate tableofcontents based on instruction data
-        $tableofcontents = [];
+        // STEP 1: collect all headers of the page based on instruction data
+        $header_instructions = [];
         $instructions = p_cached_instructions(wikiFN($ID), true, $ID) ?? [];
         foreach ($instructions as $instruction) {
-            if ($instruction[0] == 'header') {
-                [$text, $level, $pos, $extra] = $instruction[1];
-                // import variables from extra array; $hid, $number, $title, $xhtml
-                $extra = $hpp->resolve_extra_instruction($extra, $level, $this->headerCountInit);
-                extract($extra);
+            // get call type
+            $call = ($instruction[0] == 'plugin')
+                ? 'plugin_'.$instruction[1][0]
+                : $instruction[0];
 
-                $hid = $hpp->sectionID($hid, $headers);
-                $tableofcontents[] = [
+            switch ($call) {
+                case 'header':
+                    $header_instructions[] = $instruction[1];
+                    break;
+                case 'plugin_headings_include':
+                    if (!in_array($instruction[1][1][0], ['section','page'])) {
+                        break;
+                    }
+                    $pos  = $instruction[2];
+                    // $page = $instruction[1][1][1];
+                    // $sect = $instruction[1][1][2];
+                    // get headers from metadata (stored by include syntax component)
+                    $data = $metadata['headers'][$pos] ?? [];
+                    foreach ($data as $page => $included_headers) {
+                        $header_instructions = array_merge(
+                                   $header_instructions,
+                                   $included_headers
+                        );
+                    }
+                    break;
+            }
+        } // end of foreach $instructions
+
+        // STEP 2: Generate tableofcontents from header instructions
+        $tableofcontents = [];
+        foreach ($header_instructions as $header_args) {
+            [$text, $level, $pos, $extra] = $header_args;
+            // import variables from extra array; $hid, $number, $title, $xhtml
+            $extra = $hpp->resolve_extra_instruction($extra, $level, $this->headerCountInit);
+            $extra = $hpp->set_numbered_title($extra);
+            extract($extra);
+
+            $hid = $hpp->sectionID($hid, $headers);
+            $tableofcontents[] = [
                     'hid'    => $hid,
                     'level'  => $level, //$instruction[1][1]
                     'pos'    => $pos,   //$instruction[1][2]
@@ -154,46 +167,8 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
                     'title'  => $title, //$instruction[1][3]['title']
                     'xhtml'  => $xhtml, //$instruction[1][3]['xhtml']
                     'type'   => 'ul',
-                ];
-            } elseif ($instruction[0] == 'plugin'
-                && $instruction[1][0] == 'headings_include'
-                && in_array($instruction[1][1][0], ['section','page']) // mode
-            ){
-                $pos  = $instruction[2];
-                $page = $instruction[1][1][1];
-                $sect = $instruction[1][1][2];
-                // get headers from metadata that is stored by include syntax component
-                $data = $metadata['tableofcontents'][$pos] ?? [];
-                foreach ($data as $id => $included_headers) {
-                    foreach ($included_headers as $item) {
-                        // import variables from an array into the current symbol table
-                        // [$hid, $level, $pos, $number, $title, $xhtml, $type] = array_values($item);
-                        extract($item);
-
-                        // get tiered number for the heading
-                        $tiered_number = (isset($number))
-                            ? $hpp->_tiered_number($level, $number, $this->headerCountInit)
-                            : null;
-                        // update hid
-                        if ($hid == '#') {
-                            $hid = (is_int($tiered_number[0]) ? 'section' : '').$tiered_number;
-                        } elseif (empty($hid)) {
-                            $hid = $title;
-                        }
-                        $hid = $hpp->sectionID($hid, $headers);
-                        $tableofcontents[] = [
-                            'hid'    => $hid,
-                            'level'  => $level, //$item['level']
-                            'pos'    => $pos,   //$item['pos']
-                            'number' => $tiered_number ?? null,  // 階層番号文字列に変更する
-                            'title'  => $title, //$item['title']
-                            'xhtml'  => $xhtml, //$item['xhtml']
-                            'type'   => 'ul',
-                        ];
-                    }
-                }
-            }
-        } // end of foreach
+            ];
+        }
 
         // set pagename
         $count_headers = count($tableofcontents);

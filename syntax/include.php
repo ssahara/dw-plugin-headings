@@ -78,7 +78,9 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
 
             $page = $page ? cleanID($page) : $ID;
             $check = false;
-            $sect = isset($sect) ? sectionID($sect, $check) : null;
+            // sectは タイトルではなく、hidを指定する
+            // 指定されたhidをここで小文字に(sectionID or cleanID)しないでおく。
+            $sect = isset($sect) ? $sect : null;
 
             // check whether page and section exist using meta file
             $check = [];
@@ -90,7 +92,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                 $title = $map[$sect]['title'] ?? null;
                 $check['sect'] = isset($hid);
             }
-            $sect = $hid;
+
             $note = '';
             if (isset($check['sect']) && !$check['sect']) {
                 $note = 'section not found!';
@@ -109,6 +111,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             [$mode, $page, $sect] = preg_split('/>|#/u', $param, 3);
             $flags = explode('&', $flags);
             $check = false;
+            // sectは タイトルを指定する（hid ではない）
             $sect = isset($sect) ? sectionID($sect, $check) : null;
             $extra = [$match,''];
         }
@@ -203,15 +206,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             if ($format == 'metadata') {
                 foreach ($instructions as $instruction) {
                     if ($instruction[0] == 'header') {
-                        $metadata['tableofcontents'][$pos][$id][] = [
-                            'hid'    => $instruction[1][3]['hid'],
-                            'level'  => $instruction[1][1],
-                            'pos'    => $instruction[1][2],
-                            'number' => $instruction[1][3]['number'] ?? null,
-                            'title'  => $instruction[1][3]['title'] ?? '',
-                            'xhtml'  => $instruction[1][3]['xhtml'] ?? '',
-                            'type'   => 'ul',
-                        ];
+                        $metadata['headers'][$pos][$id][] = $instruction[1];
                     }
                 } // end of foreach
             }
@@ -761,6 +756,9 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         $level  = null;
         $endpos = null; // end position in the input text, needed for section edit buttons
 
+        static $hpp; // headings preprocessor object
+        isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
+
         $check = []; // used for sectionID() in order to get the same ids as the xhtml renderer
 
         foreach ($ins as $k => $instruction) {
@@ -771,7 +769,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
                     }
                     break;
                 case 'header':
-                    $hid = sectionID($instruction[1][3]['hid'], $check);
+                    $hid = $hpp->sectionID($instruction[1][3]['hid'], $check);
 
                     // find the header
                     if (!isset($header_found) && ($hid == $sect)) {
@@ -797,6 +795,12 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             // the section not found
             // nothing in strict mode, otherwise all instructions will be renderd
             $ins = [];
+        } else {
+            // 指定セクションが見つからなかったら（ページ全体をイングルードせず）
+            // 欠落を示唆するように区切り線を2回引く
+            $ins = [];
+            $ins[] = $this->dwInstruction('hr',[]);
+            $ins[] = $this->dwInstruction('hr',[]);
         }
     }
 
