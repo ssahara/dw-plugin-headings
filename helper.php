@@ -5,10 +5,10 @@
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Satoshi Sahara <sahara.satoshi@gmail.com>
  */
-if(!defined('DOKU_INC')) die();
+if (!defined('DOKU_INC')) die();
 
-class helper_plugin_headings extends DokuWiki_Plugin {
-
+class helper_plugin_headings extends DokuWiki_Plugin
+{
     /**
      * Resolve extra instruction data relevant to heading properties
      * Note: this should be applied during render proocess prior to
@@ -19,10 +19,11 @@ class helper_plugin_headings extends DokuWiki_Plugin {
      *
      * @param array $extra  extra heading data, created in handler stage
      * @param int   $level  level of the heading
-     * @param bool  $reset  flag to initialize headline counter
+     * @param bool  $initHeaderCount  flag to initialize headline counter
      * @return  interpreted extra data
      */
-    function resolve_extra_instruction(array $extra, $level, &$reset) {
+    public function resolve_extra_instruction(array $extra, $level, &$initHeaderCount)
+    {
         $number =& $extra['number'] ?? null;
         $hid    =& $extra['hid']    ?? null;
         $title  =& $extra['title']  ?? null;
@@ -30,7 +31,7 @@ class helper_plugin_headings extends DokuWiki_Plugin {
 
         // get tiered number for the heading
         $number = (isset($number))
-            ? $this->_tiered_number($level, $number, $reset)
+            ? $this->_tiered_number($level, $number, $initHeaderCount)
             : null;
         // decide hid value, title text or tiered numbers
         if ($hid == '#') {
@@ -51,7 +52,8 @@ class helper_plugin_headings extends DokuWiki_Plugin {
      * @param array $extra  extra heading data, created in handler stage
      * @return  interpreted extra data
      */
-    function set_numbered_title(array $extra) {
+    public function set_numbered_title(array $extra)
+    {
         $number =& $extra['number'] ?? null;
         $title  =& $extra['title']  ?? null;
         $xhtml  =& $extra['xhtml']  ?? null;
@@ -68,7 +70,8 @@ class helper_plugin_headings extends DokuWiki_Plugin {
     /**
      * toc array filter
      */
-    function toc_filter(array $toc, $topLv=null, $maxLv=null, $start_hid='', $depth=5) {
+    public function toc_filter(array $toc, $topLv=null, $maxLv=null, $start_hid='', $depth=5)
+    {
         global $conf;
         $toptoclevel = $topLv ?? $conf['toptoclevel'];
         $maxtoclevel = $maxLv ?? $conf['maxtoclevel'];
@@ -117,9 +120,9 @@ class helper_plugin_headings extends DokuWiki_Plugin {
      * Note1: numbers may be numeric, string such "A1"
      * Note2: #! means set the header level as the first tier of numbering
      */
-    function toc_numbering(array $toc) {
-
-        $headerCountInit = true;
+    public function toc_numbering(array $toc)
+    {
+        $initHeaderCount = true;
  
         foreach ($toc as $k => &$item) {
             $number =& $item['number'];
@@ -129,7 +132,7 @@ class helper_plugin_headings extends DokuWiki_Plugin {
 
             // get tiered number for the heading
             if (isset($number)) {
-                $tiered_number = $this->_tiered_number($level, $number, $headerCountInit);
+                $tiered_number = $this->_tiered_number($level, $number, $initHeaderCount);
 
                 // append figure space after tiered number to distinguish title
                 $tiered_number .= ' '; // U+2007 figure space
@@ -148,17 +151,18 @@ class helper_plugin_headings extends DokuWiki_Plugin {
      * @param int    $level   level of the heading
      * @param string $number  incrementable string for the numbered headings,
      *                        typically numeric, but also could be string such "A1"
-     * @param bool   $reset   flag to initialize headline counter
+     * @param bool   $initHeaderCount   flag to initialize headline counter
      * @return string  tired numbering label for the heading
      */
-    function _tiered_number($level, $number, &$reset=false) {
+    private function _tiered_number($level, $number, &$initHeaderCount=false)
+    {
         static $headerCount, $firstTierLevel;
 
         // initialize header counter, if necessary
-        if (!isset($headerCount) || $reset) {
+        if (!isset($headerCount) || $initHeaderCount) {
             $headerCount = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
             $firstTierLevel = $this->getConf('numbering_firstTierLevel');
-            $reset = false;
+            $initHeaderCount = false;
         }
         // set the first tier level if number string starts '!'
         if ($number[0] == '!') {
@@ -196,7 +200,8 @@ class helper_plugin_headings extends DokuWiki_Plugin {
      * @return string
      * @see also DW original sectionID() method defined in inc/pageutils.php
      */
-    function sectionID($title, &$check) {
+    public function sectionID($title, &$check)
+    {
         // Note: Generally, the heading title does not end with suffix number like "_1",
         // however hid should be suffixed when necessary to identify duplicated title
         // in the page. Here, we remove tailing suffix number from the title/hid
@@ -229,4 +234,3 @@ class helper_plugin_headings extends DokuWiki_Plugin {
     }
 
 }
-

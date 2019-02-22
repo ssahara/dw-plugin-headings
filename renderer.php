@@ -6,19 +6,21 @@
  * @author     Satoshi Sahara <sahara.satoshi@gmail.com>
  */
 
-if(!defined('DOKU_INC')) die();
-if(!defined('DOKU_LF')) define ('DOKU_LF',"\n");
+if (!defined('DOKU_INC')) die();
+if (!defined('DOKU_LF')) define ('DOKU_LF',"\n");
 
 /**
  * The Renderer
  */
-class renderer_plugin_headings extends Doku_Renderer_xhtml {
-
-    function canRender($format) {
+class renderer_plugin_headings extends Doku_Renderer_xhtml
+{
+    public function canRender($format)
+    {
         return ($format == 'xhtml');
     }
 
-    function isSingleton() {
+    public function isSingleton()
+    {
         // @see description found in inc/parser/renderer.php
         return true || parent::isSingleton();
     }
@@ -26,16 +28,17 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
     /**
      * Protected properties implemented in this own class
      */
-    protected $headerCountInit = true;
+    protected $initHeaderCount = true;
 
-    function __construct() {
-     // $this->reset();
-    }
+  //function __construct() {
+  // $this->reset();
+  //}
 
     /**
      * Reset protected properties of class Doku_Renderer_xhtml
      */
-    function reset() {
+    public function reset()
+    {
         parent::reset();
         $this->doc = '';
 
@@ -48,7 +51,7 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
         $this->_counter = array();
 
         // properties defined in this class renderer_plugin_headings
-        $this->headerCountInit = true;
+        $this->initHeaderCount = true;
     }
 
     /**
@@ -56,8 +59,8 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
      *
      * @param string $text  the text to display
      */
-    function cdata($text) {
-
+    public function cdata($text)
+    {
         static $renderer;
         isset($renderer) || $renderer = $this->loadHelper('linebreak2') ?? false;
         if ($renderer) {
@@ -75,25 +78,20 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
      * @param int    $pos   byte position in the original source
      * @param array  $extra additional/extended info of the heading
      */
-    function header($title, $level, $pos, $extra = []) {
+    public function header($title, $level, $pos, $extra = [])
+    {
         global $ACT, $INFO, $ID, $conf;
 
         static $hpp; // headings preprocessor object
         isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
 
         // import variables from extra array; $hid, $number, $title, $xhtml
-        $extra = $hpp->resolve_extra_instruction($extra, $level, $this->headerCountInit);
+        $extra = $hpp->resolve_extra_instruction($extra, $level, $this->initHeaderCount);
         $extra = $hpp->set_numbered_title($extra);
         extract($extra);
 
         // creates a linkid from a heading
         $hid = $hpp->sectionID($hid, $this->headers);
-   //   $hid1 = sectionID($hid, $check = false);
-   //   $hid = $this->_headerToLink($hid, true); // ensure unique hid
-   //   if ($hid != $hid1) {
-   //       $debug = strtoupper(get_class($this));
-   //       error_log($debug.' : duplicated hid ('.$hid1.') found in '.$ID);
-   //   }
 
         // write anchor for empty or hidden/unvisible headings
         if (empty($title)) {
@@ -107,15 +105,15 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml {
         // adjust $node to reflect hierarchy of levels
         $this->node[$level - 1]++;
         if ($level < $this->lastlevel) {
-            for($i = 0; $i < $this->lastlevel - $level; $i++) {
-                $this->node[$this->lastlevel - $i - 1] = 0;
+            for ($i = 0; $i < $this->lastlevel - $level; $i++) {
+                $this->node[$this->lastlevel - $i -1] = 0;
             }
         }
         $this->lastlevel = $level;
 
         if ($level <= $conf['maxseclevel']
             && count($this->sectionedits) > 0
-            && $this->sectionedits[count($this->sectionedits) - 1]['target'] === 'section'
+            && $this->sectionedits[count($this->sectionedits) -1]['target'] === 'section'
         ) {
             $this->finishSectionEdit($pos - 1);
         }

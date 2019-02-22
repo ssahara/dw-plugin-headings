@@ -10,12 +10,13 @@
 
 if(!defined('DOKU_INC')) die();
 
-class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
-
+class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
+{
     /**
      * Register event handlers
      */
-    function register(Doku_Event_Handler $controller) {
+    public function register(Doku_Event_Handler $controller)
+    {
         always: {
             $controller->register_hook(
                'PARSER_HANDLER_DONE', 'BEFORE', $this, 'rewrite_header_instructions', []
@@ -41,7 +42,8 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
      * 
      * Propagate extra information to xhtml renderer
      */
-    function rewrite_header_instructions(Doku_Event $event) {
+    public function rewrite_header_instructions(Doku_Event $event)
+    {
         global $ID;
         static $id = ''; // memory current page id
         $headers = [];   // memory once used hid
@@ -86,7 +88,8 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
      *
      * Extends TableOfContents database that holds All headings
      */
-    function extend_TableOfContents(Doku_Event $event, array $param) {
+    public function extend_TableOfContents(Doku_Event $event, array $param)
+    {
         global $ID, $conf;
         static $tocminheads, $toptoclevel, $maxtoclevel;
 
@@ -114,7 +117,7 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
         static $hpp; // headings preprocessor object
         isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
 
-        $headerCountInit = true;
+        $initHeaderCount = true;
         $headers = []; // memory once used hid
 
         // STEP 1: collect all headers of the page based on instruction data
@@ -154,7 +157,7 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
         foreach ($header_instructions as $header_args) {
             [$text, $level, $pos, $extra] = $header_args;
             // import variables from extra array; $hid, $number, $title, $xhtml
-            $extra = $hpp->resolve_extra_instruction($extra, $level, $this->headerCountInit);
+            $extra = $hpp->resolve_extra_instruction($extra, $level, $this->initHeaderCount);
             $extra = $hpp->set_numbered_title($extra);
             extract($extra);
 
@@ -193,7 +196,8 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin {
      * Adjust global TOC array according to a given config settings
      * @see also inc/template.php function tpl_toc($return = false)
      */
-    function tpl_toc(Doku_Event $event) {
+    public function tpl_toc(Doku_Event $event)
+    {
         global $INFO, $ACT, $conf;
 
         if ($ACT == 'admin') {
