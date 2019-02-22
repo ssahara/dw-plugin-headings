@@ -45,14 +45,9 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
     public function rewrite_header_instructions(Doku_Event $event)
     {
         global $ID;
-        static $id = ''; // memory current page id
-        $headers = [];   // memory once used hid
 
         // load helper object
         isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
-
-        // chcek whether headerCount[] in _tiered_number() need to initialize
-        $reset = ($id !== $ID) ? ($id = $ID) : false;
 
         $instructions =& $event->data->calls;
 
@@ -73,7 +68,7 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
                 } else {
                     [$text, $level, $pos] = $instruction[1];
                     $extra = [
-                        'hid'    => $hid,
+                        'hid'    => $hpp->sectionID($title, $check=[]);
                         'title'  => $title,
                     ];
                 }
@@ -228,12 +223,6 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
                 || ($item['level'] > $conf['maxtoclevel'])
             ) {
                 unset($toc[$k]);
-            } elseif (isset($item['number'])) {
-                // set numbered heading title
-                // append figure space (U+2007) after tiered number to distinguish title
-                $item['title'] = $item['number'].' '.$item['title'];
-                $item['xhtml'] = '<span class="tiered_number">'.$item['number'].' </span>'
-                                .$item['xhtml'];
             }
             $item['level'] = $item['level'] - $conf['toptoclevel'] +1;
         }

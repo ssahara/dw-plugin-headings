@@ -7,15 +7,14 @@
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Satoshi Sahara <sahara.satoshi@gmail.com>
  */
+if (!defined('DOKU_INC')) die();
 
-if(!defined('DOKU_INC')) die();
-
-class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
-
+class action_plugin_headings_toc extends DokuWiki_Action_Plugin
+{
     /**
      * Register event handlers
      */
-    function register(Doku_Event_Handler $controller) {
+    public function register(Doku_Event_Handler $controller) {
         always: {
             $controller->register_hook(
                 'DOKUWIKI_STARTED', 'BEFORE', $this, '_exportToJSINFO', []
@@ -44,7 +43,8 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
     /**
      * Exports configuration settings to $JSINFO
      */
-    function _exportToJSINFO(Doku_Event $event) {
+    public function _exportToJSINFO(Doku_Event $event)
+    {
         global $JSINFO, $INFO, $ACT;
         // TOC control should be changeable in only normal page
         if (( empty($ACT) || ($ACT=='show') || ($ACT=='preview')) == false) return;
@@ -60,7 +60,8 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
     /**
      * Add javascript information to script meta headers
      */
-    function _hookjs(Doku_Event $event) {
+    public function _hookjs(Doku_Event $event)
+    {
         $plugin_url = DOKU_REL.'lib/plugins/'.$this->getPluginName();
         $event->data['script'][] = [
             'type' => 'text/javascript',
@@ -79,7 +80,8 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
      * When Embedded TOC should refer to other page, check dependency
      * to get correct toc items from relevant .meta files
      */
-    function _handleParserCache(Doku_Event $event) {
+    public function _handleParserCache(Doku_Event $event)
+    {
         $cache =& $event->data;
         if (!$cache->page) return;
 
@@ -110,7 +112,8 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
      * to prepare placeholder for auto-TOC to be replaced in TPL_CONTENT_DISPLAY
      * event handler
      */
-    function find_TocPosition(Doku_Event $event) {
+    public function find_TocPosition(Doku_Event $event)
+    {
         global $ID, $conf;
 
         $tocDisplay = $this->getConf('tocDisplay');
@@ -163,7 +166,8 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
      *
      * @see also inc/template.php function tpl_toc($return = false)
      */
-    function tpl_toc(Doku_Event $event) {
+    public function tpl_toc(Doku_Event $event)
+    {
         global $INFO, $ACT, $TOC, $conf;
 
         if ($ACT == 'admin') {
@@ -202,16 +206,9 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
             // load helper object
             isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
 
-            foreach ($toc as $k => &$item) {
-                // set numbered heading title
-                $item = $hpp->set_numbered_title($item);
-            }
-            unset($item);
-
             // filter toc items, with toc numbering
             $toptoclevel = $metadata['toc']['toptoclevel'];
             $maxtoclevel = $metadata['toc']['maxtoclevel'];
-        //  $toc = $hpp->toc_numbering($toc);
             $toc = $hpp->toc_filter($toc, $toptoclevel, $maxtoclevel);
 
             if (count($toc) < $conf['tocminheads']) {
@@ -243,7 +240,8 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
      *     2: after the first level 2 heading
      * or, elsewhere in the content by plugin's render method.
      */
-    function show_HtmlToc(Doku_Event $event) {
+    public function show_HtmlToc(Doku_Event $event)
+    {
         global $INFO, $ID, $ACT;
 
         if (!in_array($ACT, ['show', 'preview'])) {
@@ -255,8 +253,8 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
         $tocProps = $metadata['toc'] ?? [];
 
         // return if no placeholder has rendered
-        if(!isset($tocProps['display'])) return;
-        if(!in_array($tocProps['display'], ['toc','inlinetoc'])) return;
+        if (!isset($tocProps['display'])) return;
+        if (!in_array($tocProps['display'], ['toc','inlinetoc'])) return;
 
         // placeholder
         $search = '<!-- '.strtoupper($tocProps['display']).'_HERE -->';
@@ -293,7 +291,7 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin {
             // use DW original functions defined inc/html.php file.
             return html_TOC($toc);
         }
-        if(!count($toc)) return '';
+        if (!count($toc)) return '';
 
             global $lang;
 
