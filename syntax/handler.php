@@ -10,18 +10,19 @@
 
 if(!defined('DOKU_INC')) die();
 
-class syntax_plugin_headings_handler extends DokuWiki_Syntax_Plugin {
-
-    function getType() { return 'baseonly'; }
-    function getPType(){ return 'block'; }
-    function getSort() { return 49; } // less than Doku_Parser_Mode_header = 50
+class syntax_plugin_headings_handler extends DokuWiki_Syntax_Plugin
+{
+    public function getType() { return 'baseonly'; }
+    public function getPType(){ return 'block'; }
+    public function getSort() { return 49; } // less than Doku_Parser_Mode_header = 50
 
     /**
      * Connect pattern to lexer
      */
     protected $mode, $pattern;
 
-    function preConnect() {
+    public function preConnect()
+    {
         // syntax mode, drop 'syntax_' from class name
         $this->mode = substr(get_class($this), 7);
 
@@ -30,7 +31,8 @@ class syntax_plugin_headings_handler extends DokuWiki_Syntax_Plugin {
         $this->pattern[0] = '[ \t]*={2,}[^\n]+={2,}[ \t]*(?=\n)';
     }
 
-    function connectTo($mode) {
+    public function connectTo($mode)
+    {
         global $conf;
         if ($conf['renderer_xhtml'] == 'headings') {
             $this->Lexer->addSpecialPattern($this->pattern[0], $mode, $this->mode);
@@ -40,7 +42,8 @@ class syntax_plugin_headings_handler extends DokuWiki_Syntax_Plugin {
     /**
      * Handle the match
      */
-    function handle($match, $state, $pos, Doku_Handler $handler) {
+    public function handle($match, $state, $pos, Doku_Handler $handler)
+    {
         global $ID;
 
         static $hpp; // headings preprocessor object
@@ -124,7 +127,9 @@ class syntax_plugin_headings_handler extends DokuWiki_Syntax_Plugin {
     /**
      * Create output
      */
-    function render($format, Doku_Renderer $renderer, $data) {
+    public function render($format, Doku_Renderer $renderer, $data)
+    {
+        return; // do nothing
 
         // create headings metadata that is compatible with
         // $renderer->meta['description']['tableofcontents']
