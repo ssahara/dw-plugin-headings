@@ -33,10 +33,7 @@ class syntax_plugin_headings_handler extends DokuWiki_Syntax_Plugin
 
     public function connectTo($mode)
     {
-        global $conf;
-        if ($conf['renderer_xhtml'] == 'headings') {
-            $this->Lexer->addSpecialPattern($this->pattern[0], $mode, $this->mode);
-        }
+        $this->Lexer->addSpecialPattern($this->pattern[0], $mode, $this->mode);
     }
 
     /**
@@ -45,9 +42,6 @@ class syntax_plugin_headings_handler extends DokuWiki_Syntax_Plugin
     public function handle($match, $state, $pos, Doku_Handler $handler)
     {
         global $ID;
-
-        static $hpp; // headings preprocessor object
-        isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
 
         // get level of the heading
         $text = trim($match);
@@ -112,21 +106,17 @@ class syntax_plugin_headings_handler extends DokuWiki_Syntax_Plugin
             $xhtml = '';
         }
 
-        // fallback for persistent hid
-        // NOTE: unique hid should be set in PARSER_HANDLER_DONE event handler
-        if (!isset($hid)) {
-            $hid = $hpp->sectionID($title, $check=[]);
-        }
-
-        // call header method of Doku_Handler class
+        // call header method of Doku_Handler class, the instruction
+        // is to be modified in PARSER_HANDLER_DONE event handler
         $match = $markup . (strlen($title) ? $title : ' ') . $markup;
         $handler->header($match, $state, $pos);
 
         // call render method of this plugin
-        $plugin = substr(get_class($this), 14);
         $data = [$ID, $pos, $level, $number, $hid, $title, $xhtml];
-        $handler->addPluginCall($plugin, $data, $state,$pos,$match);
+        return $data;
 
+        $plugin = substr(get_class($this), 14);
+        $handler->addPluginCall($plugin, $data, $state,$pos,$match);
         return false;
     }
 

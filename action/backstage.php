@@ -56,22 +56,24 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
             if ($instruction[0] == 'header') {
                 // [$text, $level, $pos] = $instruction[1];
                 $text = $instruction[1][0];
+                [$number, $hid, $title, $extra] = []; // set variables null
+
                 if ($instructions[$k+2][1][0] == 'headings_handler') {
                     $data = $instructions[$k+2][1][1];
                     [$page, $pos, $level, $number, $hid, $title, $xhtml] = $data;
-                    $extra = [
-                        'number' => $number,
-                        'hid'    => $hid,
-                        'title'  => $title,
-                        'xhtml'  => $xhtml,
-                    ];
+
+                    // set tentative hid, not unique in the page, which should be checked
+                    // in PARSER_METADATA_RENDER event handler where duplicated hid will
+                    // be suffixed considering included pages/sections.
+                    isset($hid) || $hid = $hpp->sectionID($title, $check=[]);
+
                 } else {
-                    [$text, $level, $pos] = $instruction[1];
-                    $extra = [
-                        'hid'    => $hpp->sectionID($title, $check=[]);
-                        'title'  => $title,
-                    ];
+                    // fallback when renderer_xhtml is not Heading PreProcessor (HPP) plugin
+                    $title = $xhtml = $text;
+                    $hid = $hpp->sectionID($title, $check=[]);
                 }
+
+                $extra = compact('number', 'hid', 'title', 'xhtml');
                 $instruction[1] = [$text, $level, $pos, $extra];
             }
         }
@@ -115,11 +117,11 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
         $initHeaderCount = true;
         $headers = []; // memory once used hid
 
-        // STEP 1: collect all headers of the page based on instruction data
+        // STEP 1: collect all headers of the page from instruction data
         $header_instructions = [];
         $instructions = p_cached_instructions(wikiFN($ID), true, $ID) ?? [];
         foreach ($instructions as $instruction) {
-            // get call type
+            // get call name
             $call = ($instruction[0] == 'plugin')
                 ? 'plugin_'.$instruction[1][0]
                 : $instruction[0];
@@ -156,6 +158,7 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
             $extra = $hpp->set_numbered_title($extra);
             extract($extra);
 
+            // ensure unique hid
             $hid = $hpp->sectionID($hid, $headers);
             $tableofcontents[] = [
                     'hid'    => $hid,
