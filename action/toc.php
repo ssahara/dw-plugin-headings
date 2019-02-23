@@ -71,7 +71,7 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin
         ];
     }
 
-
+    /* ----------------------------------------------------------------------- */
 
     /**
      * PARSER_CACHE_USE event handler
@@ -157,6 +157,8 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin
             $metadata['toc']['hid'] = $toc_hid;
         }
     }
+
+    /* ----------------------------------------------------------------------- */
 
     /**
      * TPL_TOC_RENDER event handler
@@ -277,9 +279,6 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin
         }
         $event->data = $content;
     }
-
-
-    /* ----------------------------------------------------------------------- */
 
     /**
      * Return the TOC or INLINETOC rendered to XHTML

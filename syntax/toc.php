@@ -236,7 +236,6 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin
         // filter toc items, with toc numbering
         $topLv = $tocProps['toptoclevel'];
         $maxLv = $tocProps['maxtoclevel'];
-   //   $toc = $hpp->toc_numbering($toc);
         $toc = $hpp->toc_filter($toc, $topLv, $maxLv, $section);
 
         // modify toc items directly within loop by reference
@@ -294,6 +293,8 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin
         $html.= '</span>';
         return $html;
     }
+
+    /* ----------------------------------------------------------------------- */
 
     /**
      * toc syntax parser

@@ -66,6 +66,55 @@ class helper_plugin_headings extends DokuWiki_Plugin
         return $extra;
     }
 
+    /**
+     * Return numbering label for hierarchical headings, eg. 1.2.3
+     * 
+     * Note1: numbering label may be numeric, or incrementable string such "A1"
+     * Note2: #! means set the header level as the first tier of numbering
+     *
+     * @param int    $level   level of the heading
+     * @param string $number  incrementable string for the numbered headings,
+     *                        typically numeric, but also could be string such "A1"
+     * @param bool   $initHeaderCount   flag to initialize headline counter
+     * @return string  tired numbering label for the heading
+     */
+    private function _tiered_number($level, $number, &$initHeaderCount=false)
+    {
+        static $headerCount, $firstTierLevel;
+
+        // initialize header counter, if necessary
+        if (!isset($headerCount) || $initHeaderCount) {
+            $headerCount = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
+            $firstTierLevel = $this->getConf('numbering_firstTierLevel');
+            $initHeaderCount = false;
+        }
+        // set the first tier level if number string starts '!'
+        if ($number[0] == '!') {
+             $firstTierLevel = $level;
+             $number = substr($number, 1);
+        }
+        // set header counter for numbering
+        $headerCount[$level] = empty($number)
+            ? ++$headerCount[$level]  // increment counter
+            : $number;
+        // reset the number of the subheadings
+        for ($i = $level +1; $i <= 5; $i++) {
+            $headerCount[$i] = 0;
+        }
+        // build tiered number ex: 2.1, 1.
+        $tier = $level - $firstTierLevel +1;
+        $tiers = array_slice($headerCount, $firstTierLevel -1, $tier);
+        $tiered_number = implode('.', $tiers);
+        if (count($tiers) == 1) {
+            // append always tailing dot for single tiered number
+            if (strlen($tiered_number) == strspn($tiered_number,'1234567890')) {
+                $tiered_number .= '.';
+            }
+        }
+        return $tiered_number;
+    }
+
+    /* ----------------------------------------------------------------------- */
 
     /**
      * toc array filter
@@ -114,82 +163,7 @@ class helper_plugin_headings extends DokuWiki_Plugin
         return $toc;
     }
 
-    /**
-     * hierarchical numbering for toc items
-     * - add tiered numbers as indexes for hierarchical headings
-     * Note1: numbers may be numeric, string such "A1"
-     * Note2: #! means set the header level as the first tier of numbering
-     */
-    public function toc_numbering(array $toc)
-    {
-        $initHeaderCount = true;
- 
-        foreach ($toc as $k => &$item) {
-            $number =& $item['number'];
-            $level  =& $item['level'];
-            $title  =& $item['title'];
-            $xhtml  =& $item['xhtml'];
-
-            // get tiered number for the heading
-            if (isset($number)) {
-                $tiered_number = $this->_tiered_number($level, $number, $initHeaderCount);
-
-                // append figure space after tiered number to distinguish title
-                $tiered_number .= ' '; // U+2007 figure space
-                if ($title) {
-                    $title = $tiered_number . $title;
-                    $xhtml = '<span class="tiered_number">'.$tiered_number.'</span>'.$xhtml;
-                }
-            }
-        } // end of foreach
-        return $toc;
-    }
-
-    /**
-     * Return numbering label for hierarchical headings, eg. 1.2.3
-     *
-     * @param int    $level   level of the heading
-     * @param string $number  incrementable string for the numbered headings,
-     *                        typically numeric, but also could be string such "A1"
-     * @param bool   $initHeaderCount   flag to initialize headline counter
-     * @return string  tired numbering label for the heading
-     */
-    private function _tiered_number($level, $number, &$initHeaderCount=false)
-    {
-        static $headerCount, $firstTierLevel;
-
-        // initialize header counter, if necessary
-        if (!isset($headerCount) || $initHeaderCount) {
-            $headerCount = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
-            $firstTierLevel = $this->getConf('numbering_firstTierLevel');
-            $initHeaderCount = false;
-        }
-        // set the first tier level if number string starts '!'
-        if ($number[0] == '!') {
-             $firstTierLevel = $level;
-             $number = substr($number, 1);
-        }
-        // set header counter for numbering
-        $headerCount[$level] = empty($number)
-            ? ++$headerCount[$level]  // increment counter
-            : $number;
-        // reset the number of the subheadings
-        for ($i = $level +1; $i <= 5; $i++) {
-            $headerCount[$i] = 0;
-        }
-        // build tiered number ex: 2.1, 1.
-        $tier = $level - $firstTierLevel +1;
-        $tiers = array_slice($headerCount, $firstTierLevel -1, $tier);
-        $tiered_number = implode('.', $tiers);
-        if (count($tiers) == 1) {
-            // append always tailing dot for single tiered number
-            if (strlen($tiered_number) == strspn($tiered_number,'1234567890')) {
-                $tiered_number .= '.';
-            }
-        }
-        return $tiered_number;
-    }
-
+    /* ----------------------------------------------------------------------- */
 
     /**
      * Create a XHTML valid linkid from a given heading title
