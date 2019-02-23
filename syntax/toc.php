@@ -12,14 +12,14 @@
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Satoshi Sahara <sahara.satoshi@gmail.com>
  */
+if (!defined('DOKU_INC')) die();
 
-if(!defined('DOKU_INC')) die();
+class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin
+{
 
-class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin {
-
-    function getType() { return 'substition'; }
-    function getPType(){ return 'block'; }
-    function getSort() { return 29; } // less than Doku_Parser_Mode_notoc = 30
+    public function getType() { return 'substition'; }
+    public function getPType(){ return 'block'; }
+    public function getSort() { return 29; } // less than Doku_Parser_Mode_notoc = 30
 
     protected $tocStyle = [           // toc visual design options
         'TOC'       => 'toc_dokuwiki',
@@ -32,7 +32,8 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin {
      */
     protected $mode, $pattern;
 
-    function preConnect() {
+    public function preConnect()
+    {
         // syntax mode, drop 'syntax_' from class name
         $this->mode = substr(get_class($this), 7);
 
@@ -42,7 +43,8 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin {
         $this->pattern[2] = '{{!(?:SIDE|INLINE)?TOC\b.*?}}';
     }
 
-    function connectTo($mode) {
+    public function connectTo($mode)
+    {
         always: {
             $this->Lexer->addSpecialPattern($this->pattern[0], $mode, $this->mode);
         }
@@ -55,7 +57,8 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin {
     /**
      * Handle the match
      */
-    function handle($match, $state, $pos, Doku_Handler $handler) {
+    public function handle($match, $state, $pos, Doku_Handler $handler)
+    {
         global $ID;
 
         // parse syntax
@@ -115,8 +118,8 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin {
     /**
      * Create output
      */
-    function render($format, Doku_Renderer $renderer, $data) {
-
+    public function render($format, Doku_Renderer $renderer, $data)
+    {
         [$type, $id, $tocProps] = $data;
 
         if ($format == 'metadata') {
@@ -136,7 +139,8 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin {
     /**
      * Render metadata
      */
-    function render_metadata(Doku_Renderer $renderer, $data) {
+    protected function render_metadata(Doku_Renderer $renderer, $data)
+    {
         global $ID;
 
         [$type, $id, $tocProps] = $data;
@@ -175,7 +179,8 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin {
      * Render xhtml placeholder for DokuWiki built-in TOC
      * the placeholder will be replaced through action TPL_CONTENT_DISPLAY event handler
      */
-    function render_toc(Doku_Renderer $renderer, $data) {
+    protected function render_toc(Doku_Renderer $renderer, $data)
+    {
         global $INFO, $ACT;
         static $counts; // count toc placeholders appeared in the page
 
@@ -206,7 +211,8 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin {
     /**
      * Render xhtml Embedded TOC
      */
-    function render_embeddedtoc(Doku_Renderer $renderer, $data) {
+    protected function render_embeddedtoc(Doku_Renderer $renderer, $data)
+    {
         global $INFO, $ACT, $lang;
 
         [$type, $id, $tocProps] = $data;
@@ -235,9 +241,6 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin {
 
         // modify toc items directly within loop by reference
         foreach ($toc as $k => &$item) {
-            // set numbered heading title
-            $item = $hpp->set_numbered_title($item);
-
             if ($page == $INFO['id']) {
                 // headings found in current page (internal link)
                 $item['url']  = '#'.$item['hid'];
@@ -278,7 +281,8 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin {
      * Callback for html_buildlist called from $this->render_embeddedtoc()
      * Builds html of each list item
      */
-    function html_list_metatoc($item) {
+    public function html_list_metatoc($item)
+    {
         $html = '<span class="li">';
         if (isset($item['page'])) {
             $html.= '<a title="'.$item['page'].'#'.$item['hid'].'"';
@@ -297,7 +301,8 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin {
      * @param string $param
      * @return array ($tocProps)
      */
-    function parse($param) {
+    protected function parse($param)
+    {
         global $conf;
 
         // Ex: {{!TOC 2-4 width18 toc_hierarchical >id#section | title}}
