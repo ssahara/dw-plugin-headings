@@ -96,7 +96,13 @@ class syntax_plugin_headings_handler extends DokuWiki_Syntax_Plugin
             if (substr($xhtml, 0, 4) == "<p>\n") {
                 $xhtml = strstr( substr($xhtml,4), "\n</p>", true);
                 $xhtml = preg_replace('#<a\b.*?>(.*?)</a>#', '${1}', $xhtml);
-                $newtitle = htmlspecialchars_decode(strip_tags($xhtml), ENT_QUOTES);
+                $html = $xhtml;
+                // remove ruby text and parentheses around ruby text, but leave ruby base
+                if (strpos($xhtml, '<ruby>') !== false) {
+                    $html = preg_replace('#<r[pt]>[^<]*</r[pt]>#', '', $html);
+                    $html = preg_replace('#<r[pt]>.*?(?=<)#', '', $html);
+                }
+                $newtitle = htmlspecialchars_decode(strip_tags($html), ENT_QUOTES);
                 $newtitle = str_replace(DOKU_LF, '', $newtitle); // remove any linebreak
                 $title = $newtitle ?: $title;
             } else {
