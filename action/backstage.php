@@ -53,29 +53,44 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
 
         // rewrite header instructions
         foreach ($instructions as $k => &$instruction) {
-            if ($instruction[0] == 'header') {
-                // [$text, $level, $pos] = $instruction[1];
-                $text = $instruction[1][0];
-                [$number, $hid, $title, $extra] = []; // set variables null
+            // get call name
+            $call = ($instruction[0] == 'plugin')
+                ? 'plugin_'.$instruction[1][0]
+                : $instruction[0];
 
-                if ($instructions[$k+2][1][0] == 'headings_handler') {
-                    $data = $instructions[$k+2][1][1];
-                    [$page, $pos, $level, $number, $hid, $title, $xhtml] = $data;
+            switch ($call) {
+                case 'header':
+                    [$text, $level, $pos] = $instruction[1];
+                    //$text = $instruction[1][0];
+                    [$number, $hid, $title, $extra] = []; // set variables null
 
-                    // set tentative hid, not unique in the page, which should be checked
-                    // in PARSER_METADATA_RENDER event handler where duplicated hid will
-                    // be suffixed considering included pages/sections.
-                    isset($hid) || $hid = $hpp->sectionID($title, $check=[]);
+                    if ($instructions[$k+2][1][0] == 'headings_handler') {
+                        $data = $instructions[$k+2][1][1];
+                        [$page, $pos, $level, $number, $hid, $title, $xhtml] = $data;
 
-                } else {
-                    // fallback when renderer_xhtml is not Heading PreProcessor (HPP) plugin
-                    $title = $xhtml = $text;
-                    $hid = $hpp->sectionID($title, $check=[]);
-                }
+                        // set tentative hid, not unique in the page, which should be checked
+                        // in PARSER_METADATA_RENDER event handler where duplicated hid will
+                        // be suffixed considering included pages/sections.
+                        isset($hid) || $hid = $hpp->sectionID($title, $check=[]);
 
-                $extra = compact('number', 'hid', 'title', 'xhtml');
-                $instruction[1] = [$text, $level, $pos, $extra];
-            }
+                    } else {
+                        // fallback when renderer_xhtml is not Heading PreProcessor (HPP) plugin
+                        $title = $xhtml = $text;
+                        $hid = $hpp->sectionID($title, $check=[]);
+                    }
+
+                    $extra = compact('number', 'hid', 'title', 'xhtml');
+                    $instruction[1] = [$text, $level, $pos, $extra];
+                    break;
+                case 'plugin_headings_handler':
+                  //unset($instructions[$k]);
+                    break;
+                case 'plugin_headings_toc':
+                    // 要検討：Built-in toc を初出限定にする処理を加えるか？
+                    $data = $instruction[1][1];
+                    [$pattern, $id, $tocProps] = $data;
+                    break;
+            } // end of switch $call
         }
         unset($instruction);
     }
