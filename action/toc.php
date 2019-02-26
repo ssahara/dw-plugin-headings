@@ -51,9 +51,8 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin
 
         // retrieve from metadata
         $metadata =& $INFO['meta']['plugin'][$this->getPluginName()];
-        $tocState = $metadata['toc']['state'];
-        if (isset($tocState)) {
-            $JSINFO['toc']['initial_state'] = $tocState;
+        if (isset($metadata['toc']['initial_state'])) {
+            $JSINFO['toc']['initial_state'] = $metadata['toc']['initial_state'];
         }
     }
 
@@ -117,21 +116,21 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin
         global $ID, $conf;
 
         $tocDisplay = $this->getConf('tocDisplay');
-        if(!in_array($tocDisplay, ['0','1','2'])) return;
+        if (!in_array($tocDisplay, ['0','1','2'])) return;
 
         // auto toc disabled by ~~NOTOC~~ or tocminheads config setting
         $notoc = !$event->data['current']['internal']['toc'];
-        if($notoc || ($conf['tocminheads'] == 0)) return;
+        if ($notoc || ($conf['tocminheads'] == 0)) return;
 
         // no heading in the page
         $toc =& $event->data['current']['description']['tableofcontents'];
-        if(!isset($toc) || empty($toc)) return;
+        if (!isset($toc) || empty($toc)) return;
 
         // retrieve toc parameters from metadata storage
         $metadata =& $event->data['current']['plugin'][$this->getPluginName()];
 
         // toc will be rendered by {{TOC|INLINETOC}}
-        if(isset($metadata['toc']['display'])) return;
+        if (isset($metadata['toc']['display'])) return;
 
         // now worth to seek potential toc box position from tableofcontents
         switch ($tocDisplay) {

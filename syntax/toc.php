@@ -16,7 +16,6 @@ if (!defined('DOKU_INC')) die();
 
 class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin
 {
-
     public function getType() { return 'substition'; }
     public function getPType(){ return 'block'; }
     public function getSort() { return 29; } // less than Doku_Parser_Mode_notoc = 30
@@ -63,30 +62,30 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin
 
         // parse syntax
         if ($match[0] == '~') {
-            $type = 0;
+            $pattern = 0;
             [$name, $param] = explode(' ', substr($match, 2, -2), 2);
         } else {
-            $type = ($match[2] == '!') ? 2 : 1;
-            [$name, $param] = explode(' ', substr($match, $type +1, -2), 2);
+            $pattern = ($match[2] == '!') ? 2 : 1;
+            [$name, $param] = explode(' ', substr($match, $pattern +1, -2), 2);
         }
 
         // resolve toc parameters such as toptoclevel, maxtoclevel, class, title
         $tocProps = $param ? $this->parse($param) : [];
 
-        switch ($type) {
+        switch ($pattern) {
             case 0: // macro appricable both TOC and INLINETOC
                 if ($name == 'NOTOC') {
                     $handler->_addCall('notoc', array(), $pos);
                     $tocProps['display'] = 'none';
-                    $type = 1;
+                    $pattern = 1;
                 } elseif ($name == 'CLOSETOC') {
-                    $tocProps['state'] = -1;
+                    $tocProps['initial_state'] = -1;
                 }
                 break;
 
             case 1: // DokiWiki original TOC or alternative INLINETOC
                 if (substr($name, 0, 6) == 'CLOSED') {
-                    $tocProps['state'] = -1;
+                    $tocProps['initial_state'] = -1;
                     $tocProps['display'] = strtolower(substr($name, 7));
                 } else {
                     $tocProps['display'] = strtolower($name);
@@ -110,9 +109,9 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin
                     $tocProps['class'] = $tocStyle.' '.$tocProps['class'];
                 }
                 break;
-        } // end of switch ($type)
+        } // end of switch ($pattern)
 
-        return $data = [$type, $ID, $tocProps];
+        return $data = [$pattern, $ID, $tocProps];
     }
 
     /**
@@ -120,12 +119,12 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin
      */
     public function render($format, Doku_Renderer $renderer, $data)
     {
-        [$type, $id, $tocProps] = $data;
+        [$pattern, $id, $tocProps] = $data;
 
         if ($format == 'metadata') {
-            return $this->render_metadata($renderer, $data);
+                    return $this->render_metadata($renderer, $data);
         } else { // $format == 'xhtml'
-            switch ($type) {
+            switch ($pattern) {
                 case 0:
                 case 1:
                     return $this->render_toc($renderer, $data);
@@ -143,13 +142,13 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin
     {
         global $ID;
 
-        [$type, $id, $tocProps] = $data;
+        [$pattern, $id, $tocProps] = $data;
         if ($id !== $ID) return false; // ignore instructions for other page
 
         // store into matadata storage
         $metadata =& $renderer->meta['plugin'][$this->getPluginName()];
 
-        switch ($type) {
+        switch ($pattern) {
             case 0:
             case 1:
                 // add only new key-value pairs, keep already stored data
@@ -184,7 +183,7 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin
         global $INFO, $ACT;
         static $counts; // count toc placeholders appeared in the page
 
-        [$type, $id, $tocProps] = $data;
+        [$pattern, $id, $tocProps] = $data;
 
         // render PLACEHOLDER
         if (in_array($tocProps['display'], ['toc','inlinetoc'])) {
@@ -197,7 +196,7 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin
         } else return false;
 
         if ($ACT == 'preview') {
-            $state = $tocProps['state'] ? 'CLOSED_' : '';
+            $state = $tocProps['initial_state'] ? 'CLOSED_' : '';
             $range = $tocProps['toptoclevel'].'-'.$tocProps['maxtoclevel'];
             $note = '<!-- '.$state.strtoupper($tocName).'_HERE '.$range.' -->';
             $renderer->doc .= '<code class="preveiw_note">';
@@ -215,7 +214,7 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin
     {
         global $INFO, $ACT, $lang;
 
-        [$type, $id, $tocProps] = $data;
+        [$pattern, $id, $tocProps] = $data;
 
         if (isset($tocProps['page'])) {
             [$page, $section] = explode('#', $tocProps['page']);
