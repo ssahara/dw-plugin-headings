@@ -28,9 +28,6 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin
                 'PARSER_CACHE_USE', 'BEFORE', $this, '_handleParserCache', []
             );
             $controller->register_hook(
-                'PARSER_METADATA_RENDER', 'AFTER', $this, 'find_TocPosition', []
-            );
-            $controller->register_hook(
                 'TPL_TOC_RENDER', 'BEFORE', $this, 'tpl_toc', []
             );
             $controller->register_hook(
@@ -100,61 +97,6 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin
                         : $depends;
         } // end of switch
         return;
-    }
-
-    /**
-     * PARSER_METADATA_RENDER event handler
-     *
-     * Find toc box position in accordance with tocDisplay config
-     * if relevant heading (including empty heading) found in tableofcontents
-     * store it's hid into metadata storage, which will be used xhtml renderer
-     * to prepare placeholder for auto-TOC to be replaced in TPL_CONTENT_DISPLAY
-     * event handler
-     */
-    public function find_TocPosition(Doku_Event $event)
-    {
-        global $ID, $conf;
-
-        $tocDisplay = $this->getConf('tocDisplay');
-        if (!in_array($tocDisplay, ['0','1','2'])) return;
-
-        // auto toc disabled by ~~NOTOC~~ or tocminheads config setting
-        $notoc = !$event->data['current']['internal']['toc'];
-        if ($notoc || ($conf['tocminheads'] == 0)) return;
-
-        // no heading in the page
-        $toc =& $event->data['current']['description']['tableofcontents'];
-        if (!isset($toc) || empty($toc)) return;
-
-        // retrieve toc parameters from metadata storage
-        $metadata =& $event->data['current']['plugin'][$this->getPluginName()];
-
-        // toc will be rendered by {{TOC|INLINETOC}}
-        if (isset($metadata['toc']['display'])) return;
-
-        // now worth to seek potential toc box position from tableofcontents
-        switch ($tocDisplay) {
-            case '0': // after the First any level heading
-                $toc_hid = $toc[0]['hid'];
-                break;
-            case '1': // after the First Level 1 heading
-            case '2': // after the First Level 2 heading
-                foreach ($toc as $k => $item) {
-                    if ($item['level'] == $tocDisplay) {
-                        $toc_hid = $item['hid'];
-                        break;
-                    }
-                }
-                break;
-            default:
-                $toc_hid = '';
-        } // end of switch
-
-        // store toc_hid into matadata storage for xhtml renderer
-        if ($toc_hid) {
-            $metadata['toc']['display'] = 'toc';
-            $metadata['toc']['hid'] = $toc_hid;
-        }
     }
 
     /* ----------------------------------------------------------------------- */

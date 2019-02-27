@@ -8,7 +8,7 @@
  * @author     Satoshi Sahara <sahara.satoshi@gmail.com>
  */
 
-if(!defined('DOKU_INC')) die();
+if (!defined('DOKU_INC')) die();
 
 class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
 {
@@ -120,21 +120,18 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
             $conf['maxtoclevel'] = $maxtoclevel;
         }
 
-        $toc =& $event->data['current']['description']['tableofcontents'];
+        $toc   =& $event->data['current']['description']['tableofcontents'];
+        $notoc = !$event->data['current']['internal']['toc'];
         $count_toc = is_array($toc) ? count($toc) : null;
-
-        // retrieve from metadata
-        $metadata =& $event->data['current']['plugin_include'];
 
         static $hpp; // headings preprocessor object
         isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
 
-        $initHeaderCount = true;
-        $headers = []; // memory once used hid
-
         // STEP 1: collect all headers of the page from instruction data
         $header_instructions = [];
         $instructions = p_cached_instructions(wikiFN($ID), true, $ID) ?? [];
+        $metadata =& $event->data['current']['plugin_include'];
+
         foreach ($instructions as $instruction) {
             // get call name
             $call = ($instruction[0] == 'plugin')
@@ -166,6 +163,10 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
 
         // STEP 2: Generate tableofcontents from header instructions
         $tableofcontents = [];
+        $first_headers   = [];
+        $headers         = []; // memory once used hid
+        $initHeaderCount = true;
+
         foreach ($header_instructions as $header_args) {
             [$text, $level, $pos, $extra] = $header_args;
             // import variables from extra array; $hid, $number, $title, $xhtml
@@ -184,6 +185,33 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
                     'xhtml'  => $xhtml, //$instruction[1][3]['xhtml']
                     'type'   => 'ul',
             ];
+
+            // store hid of the first appeared header of each level
+            if (!array_key_exists($level, $first_headers)) {
+                $first_headers[$level] = $hid;
+            }
+        } // end of foreach $header_instructions
+
+        // STEP 3: Find position of built-in toc box
+        /*
+         * Find toc box position in accordance with tocDisplay config
+         * if relevant heading (including empty heading) found in tableofcontents
+         * store it's hid into metadata storage, which will be used xhtml renderer
+         * to output placeholder for auto-TOC to be replaced in TPL_CONTENT_DISPLAY
+         * event handler
+         */
+        $metadata =& $event->data['current']['plugin'][$this->getPluginName()];
+
+        if (count($tableofcontents) >= $conf['tocminheads']) {
+            $tocDisplay = $this->getConf('tocDisplay');
+            $toc_hid = (array_key_exists($tocDisplay, $first_headers))
+                ? $first_headers[$tocDisplay]
+                : null;
+            // store toc_hid into matadata storage for xhtml renderer
+            if (!isset($metadata['toc']['display']) && $toc_hid) {
+                $metadata['toc']['hid'] = $toc_hid;
+                $metadata['toc']['display'] = 'toc';
+            }
         }
 
         // set pagename
