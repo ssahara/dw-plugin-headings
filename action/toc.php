@@ -117,6 +117,11 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin
 
         if ($ACT !== 'show') return;
 
+        if ($this->getConf('tocDisplay') == 'disabled') {
+            $INFO['prependTOC'] = $INFO['meta']['internal']['toc'];
+            return;
+        }
+
         // retrieve toc parameters from metadata storage
         $metadata =& $INFO['meta']['plugin'][$this->getPluginName()];
         $tocDisplay = $metadata['toc']['display'] ?? $this->getConf('tocDisplay');
@@ -126,6 +131,10 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin
         } else {
             //prepend placeholder for TOC
             echo '<!-- TOC_HERE -->'.DOKU_LF;
+
+            // 常に Built-in/Auto TOC はページコンテンツに追加しない
+            $INFO['prependTOC'] = false;
+            $metadata['toc']['display'] = 'toc'; // 注意 .meta には反映されない
         }
     }
 
@@ -145,39 +154,27 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin
 
         if ($ACT === 'admin') return;
 
-        // retrieve toc parameters from metadata storage
-        $metadata =& $INFO['meta']['plugin'][$this->getPluginName()];
-        $tocDisplay = $metadata['toc']['display'] ?? $this->getConf('tocDisplay');
-
-        if ($event->name == 'TPL_TOC_RENDER') {
-            if ($tocDisplay != 'top') {
-                // stop prepending TOC box to the original position (top right corner)
-                // of the page by empty toc
-                // note: this method is called again to build html toc
-                //       from TPL_CONTENT_DISPLAY event handler
-                $event->data = $toc = [];
-                return;
-            }
+        if ($event->name == 'TPL_TOC_RENDER' && !$INFO['prependTOC']) {
+            $event->data = $toc = [];
+            return;
         }
 
-        $notoc = !($INFO['meta']['internal']['toc']); // true if toc should not be displayed
+        // load helper object
+        static $hpp; // headings preprocessor object
+        isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
 
-        if ($notoc || ($conf['tocminheads'] == 0)) {
+        // retrieve toc parameters from metadata storage
+        $metadata =& $INFO['meta']['plugin'][$this->getPluginName()];
+
+        $toc = $INFO['meta']['description']['tableofcontents'] ?? [];
+
+        // filter toc items
+        $toptoclevel = $metadata['toc']['toptoclevel'] ?? $conf['toptoclevel'];
+        $maxtoclevel = $metadata['toc']['maxtoclevel'] ?? $conf['maxtoclevel'];
+        $toc = $hpp->toc_filter($toc, $toptoclevel, $maxtoclevel);
+
+        if (count($toc) < $conf['tocminheads']) {
             $toc = [];
-        } else {
-            $toc = $INFO['meta']['description']['tableofcontents'] ?? [];
-
-            // load helper object
-            isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
-
-            // filter toc items, with toc numbering
-            $toptoclevel = $metadata['toc']['toptoclevel'] ?? $conf['toptoclevel'];
-            $maxtoclevel = $metadata['toc']['maxtoclevel'] ?? $conf['maxtoclevel'];
-            $toc = $hpp->toc_filter($toc, $toptoclevel, $maxtoclevel);
-
-            if (count($toc) < $conf['tocminheads']) {
-                $toc = [];
-            }
         }
 
         switch ($event->name) {
@@ -208,9 +205,8 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin
     {
         global $INFO, $ID, $ACT;
 
-        if (!in_array($ACT, ['show', 'preview'])) {
-            return;
-        }
+        if ($this->getConf('tocDisplay') == 'disabled') return;
+        if (!in_array($ACT, ['show', 'preview'])) return;
 
         // retrieve toc parameters from metadata storage
         $metadata =& $INFO['meta']['plugin'][$this->getPluginName()];
