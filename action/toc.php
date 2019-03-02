@@ -22,13 +22,14 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin
             $controller->register_hook(
                 'TPL_METAHEADER_OUTPUT', 'BEFORE', $this, '_hookjs', []
             );
+            $controller->register_hook(
+                // event handler hook should be executed "earlier" than default
+                'TPL_ACT_RENDER', 'BEFORE', $this, '_setPrependToc', [], -100
+            );
         }
         if ($this->getConf('tocDisplay') != 'disabled') {
             $controller->register_hook(
                 'PARSER_CACHE_USE', 'BEFORE', $this, '_handleParserCache', []
-            );
-            $controller->register_hook(
-                'TPL_ACT_RENDER', 'BEFORE', $this, '_setPrependToc', []
             );
             $controller->register_hook(
                 'TPL_TOC_RENDER', 'BEFORE', $this, 'tpl_toc', []
@@ -107,26 +108,24 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin
     /**
      * TPL_ACT_RENDER event handler
      *
-     * Stop prepending TOC box to the original position (top right corner)
+     * Stop prepending built-in TOC box to the original position (top right corner)
      * of the page
      */
-    public function _setPrependToc(Doku_Event $event)
+    public function _setPrependToc(Doku_Event $event, array $param)
     {
         global $INFO, $ACT;
 
-        if ($ACT === 'admin') return;
+        if ($ACT !== 'show') return;
 
         // retrieve toc parameters from metadata storage
         $metadata =& $INFO['meta']['plugin'][$this->getPluginName()];
         $tocDisplay = $metadata['toc']['display'] ?? $this->getConf('tocDisplay');
-        if ($tocDisplay !== 'top') {
+        $notoc = !($INFO['meta']['internal']['toc']);
+        if ($tocDisplay !== 'top' || $notoc) {
             $INFO['prependTOC'] = false;
-            return;
-        }
-
-        $notoc = !($INFO['meta']['internal']['toc']); // true if toc should not be displayed
-        if ($notoc) {
-            $INFO['prependTOC'] = false;
+        } else {
+            //prepend placeholder for TOC
+            echo '<!-- TOC_HERE -->'.DOKU_LF;
         }
     }
 
