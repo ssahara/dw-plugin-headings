@@ -28,6 +28,9 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin
                 'PARSER_CACHE_USE', 'BEFORE', $this, '_handleParserCache', []
             );
             $controller->register_hook(
+                'TPL_ACT_RENDER', 'BEFORE', $this, '_setPrependToc', []
+            );
+            $controller->register_hook(
                 'TPL_TOC_RENDER', 'BEFORE', $this, 'tpl_toc', []
             );
             $controller->register_hook(
@@ -102,6 +105,34 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin
     /* ----------------------------------------------------------------------- */
 
     /**
+     * TPL_ACT_RENDER event handler
+     *
+     * Stop prepending TOC box to the original position (top right corner)
+     * of the page
+     */
+    public function _setPrependToc(Doku_Event $event)
+    {
+        global $INFO, $ACT;
+
+        if ($ACT === 'admin') return;
+
+        // retrieve toc parameters from metadata storage
+        $metadata =& $INFO['meta']['plugin'][$this->getPluginName()];
+        $tocDisplay = $metadata['toc']['display'] ?? $this->getConf('tocDisplay');
+        if ($tocDisplay !== 'top') {
+            $INFO['prependTOC'] = false;
+            return;
+        }
+
+        $notoc = !($INFO['meta']['internal']['toc']); // true if toc should not be displayed
+        if ($notoc) {
+            $INFO['prependTOC'] = false;
+        }
+    }
+
+    /* ----------------------------------------------------------------------- */
+
+    /**
      * TPL_TOC_RENDER event handler
      *
      * Adjust global TOC array according to a given config settings
@@ -113,20 +144,11 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin
     {
         global $INFO, $ACT, $TOC, $conf;
 
-        if ($ACT == 'admin') {
-            $toc = [];
-            // try to load admin plugin TOC
-            if ($plugin = plugin_getRequestAdminPlugin()) {
-                $toc = $plugin->getTOC();
-                $TOC = $toc; // avoid later rebuild
-            }
-            $event->data = $toc;
-            return;
-        }
+        if ($ACT === 'admin') return;
 
         // retrieve toc parameters from metadata storage
         $metadata =& $INFO['meta']['plugin'][$this->getPluginName()];
-        $tocDisplay  = $metadata['toc']['display'] ?? $this->getConf('tocDisplay');
+        $tocDisplay = $metadata['toc']['display'] ?? $this->getConf('tocDisplay');
 
         if ($event->name == 'TPL_TOC_RENDER') {
             if ($tocDisplay != 'top') {
@@ -134,24 +156,24 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin
                 // of the page by empty toc
                 // note: this method is called again to build html toc
                 //       from TPL_CONTENT_DISPLAY event handler
-                $toc = [];
-                $event->data = $toc;
+                $event->data = $toc = [];
                 return;
             }
         }
 
-        $toc = $INFO['meta']['description']['tableofcontents'] ?? [];
         $notoc = !($INFO['meta']['internal']['toc']); // true if toc should not be displayed
 
-        if ($notoc || $conf['tocminheads'] == 0) {
+        if ($notoc || ($conf['tocminheads'] == 0)) {
             $toc = [];
         } else {
+            $toc = $INFO['meta']['description']['tableofcontents'] ?? [];
+
             // load helper object
             isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
 
             // filter toc items, with toc numbering
-            $toptoclevel = $metadata['toc']['toptoclevel'];
-            $maxtoclevel = $metadata['toc']['maxtoclevel'];
+            $toptoclevel = $metadata['toc']['toptoclevel'] ?? $conf['toptoclevel'];
+            $maxtoclevel = $metadata['toc']['maxtoclevel'] ?? $conf['maxtoclevel'];
             $toc = $hpp->toc_filter($toc, $toptoclevel, $maxtoclevel);
 
             if (count($toc) < $conf['tocminheads']) {

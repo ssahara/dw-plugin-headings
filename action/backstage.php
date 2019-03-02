@@ -239,19 +239,9 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
      */
     public function tpl_toc(Doku_Event $event)
     {
-        global $INFO, $ACT, $conf;
+        global $INFO, $ACT, $TOC, $conf;
 
-        if ($ACT == 'admin') {
-            $toc = [];
-            // try to load admin plugin TOC
-            if ($plugin = plugin_getRequestAdminPlugin()) {
-                $toc = $plugin->getTOC();
-                $TOC = $toc; // avoid later rebuild
-            }
-            // error_log(' '.$event->name.' admin toc='.var_export($toc,1));
-            $event->data = $toc;
-            return;
-        }
+        if ($ACT == 'admin') return;
 
         $notoc = !($INFO['meta']['internal']['toc']); // true if toc should not be displayed
 
