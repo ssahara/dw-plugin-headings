@@ -76,7 +76,7 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin
             case 0: // macro appricable both TOC and INLINETOC
                 if ($name == 'NOTOC') {
                     $handler->_addCall('notoc', array(), $pos);
-                    $tocProps['display'] = 'none';
+                    $tocProps['display'] = 'notoc';
                     $pattern = 1;
                 } elseif ($name == 'CLOSETOC') {
                     $tocProps['initial_state'] = -1;
@@ -153,7 +153,7 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin
             case 1:
                 // add only new key-value pairs, keep already stored data
                 if (!isset($metadata['toc']['display'])
-                    && in_array($tocProps['display'], ['toc','inlinetoc'])
+                    && in_array($tocProps['display'], ['notoc','toc','inlinetoc'])
                 ) {
                     $metadata['toc'] = $tocProps;
                 }
