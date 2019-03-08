@@ -15,95 +15,26 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin
      * Register event handlers
      */
     public function register(Doku_Event_Handler $controller) {
-        always: {
-            $controller->register_hook(
-                'DOKUWIKI_STARTED', 'BEFORE', $this, '_exportToJSINFO', []
-            );
-            $controller->register_hook(
-                'TPL_METAHEADER_OUTPUT', 'BEFORE', $this, '_hookjs', []
-            );
-            $controller->register_hook(
-                // event handler hook should be executed "earlier" than default
-                'TPL_ACT_RENDER', 'BEFORE', $this, '_setPrependToc', [], -100
-            );
-        }
-        if ($this->getConf('tocDisplay') != 'disabled') {
-            $controller->register_hook(
-                'PARSER_CACHE_USE', 'BEFORE', $this, '_handleParserCache', []
-            );
-            $controller->register_hook(
-                'TPL_TOC_RENDER', 'BEFORE', $this, 'tpl_toc', []
-            );
-            $controller->register_hook(
-                'TPL_CONTENT_DISPLAY', 'BEFORE', $this, 'show_HtmlToc', []
-            );
-        }
+        $controller->register_hook(
+            // event handler hook should be executed "earlier" than default
+            'TPL_ACT_RENDER', 'BEFORE', $this, '_setPrependToc', [], -100
+        );
+        $controller->register_hook(
+            'TPL_TOC_RENDER', 'BEFORE', $this, 'tpl_toc', []
+        );
+        $controller->register_hook(
+            'TPL_CONTENT_DISPLAY', 'BEFORE', $this, 'show_HtmlToc', []
+        );
+
+        $controller->register_hook(
+            'DOKUWIKI_STARTED', 'BEFORE', $this, '_exportToJSINFO', []
+        );
+        $controller->register_hook(
+            'TPL_METAHEADER_OUTPUT', 'BEFORE', $this, '_hookjs', []
+        );
     }
 
-
-    /**
-     * Exports configuration settings to $JSINFO
-     */
-    public function _exportToJSINFO(Doku_Event $event)
-    {
-        global $JSINFO, $INFO, $ACT;
-        // TOC control should be changeable in only normal page
-        if (( empty($ACT) || ($ACT=='show') || ($ACT=='preview')) == false) return;
-
-        // retrieve from metadata
-        $metadata =& $INFO['meta']['plugin'][$this->getPluginName()];
-        if (isset($metadata['toc']['initial_state'])) {
-            $JSINFO['toc']['initial_state'] = $metadata['toc']['initial_state'];
-        }
-    }
-
-    /**
-     * Add javascript information to script meta headers
-     */
-    public function _hookjs(Doku_Event $event)
-    {
-        $plugin_url = DOKU_REL.'lib/plugins/'.$this->getPluginName();
-        $event->data['script'][] = [
-            'type' => 'text/javascript',
-            'charset' => 'utf-8',
-            '_data' => '',
-            'src' => $plugin_url.'/js/toc_status.js',
-        ];
-    }
-
-    /* ----------------------------------------------------------------------- */
-
-    /**
-     * PARSER_CACHE_USE event handler
-     *
-     * Manipulate cache validity (to get correct toc of other page)
-     * When Embedded TOC should refer to other page, check dependency
-     * to get correct toc items from relevant .meta files
-     */
-    public function _handleParserCache(Doku_Event $event)
-    {
-        $cache =& $event->data;
-        if (!$cache->page) return;
-
-        switch ($cache->mode) {
-            case 'i':        // instruction cache
-            case 'metadata': // metadata cache
-                break;
-            case 'xhtml':    // xhtml cache
-                // request check with additional dependent files
-                $metadata_key = 'plugin '.$this->getPluginName();
-                $metadata_key.= ' '.'depends';
-                $depends = p_get_metadata($cache->page, $metadata_key);
-                if (!$depends) break;
-
-                $cache->depends['files'] = isset($cache->depends['files'])
-                        ? array_merge($cache->depends['files'], $depends)
-                        : $depends;
-        } // end of switch
-        return;
-    }
-
-    /* ----------------------------------------------------------------------- */
+    /* -----------------------------------------------------------------------*/
 
     /**
      * TPL_ACT_RENDER event handler
@@ -139,7 +70,7 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin
         }
     }
 
-    /* ----------------------------------------------------------------------- */
+    /* -----------------------------------------------------------------------*/
 
     /**
      * TPL_TOC_RENDER event handler
@@ -288,6 +219,38 @@ class action_plugin_headings_toc extends DokuWiki_Action_Plugin
             $out .= '</div>'.DOKU_LF.'</div>'.DOKU_LF;
             $out .= '<!-- TOC END -->'.DOKU_LF;
             return $out;
+    }
+
+    /* -----------------------------------------------------------------------*/
+
+    /**
+     * Exports configuration settings to $JSINFO
+     */
+    public function _exportToJSINFO(Doku_Event $event)
+    {
+        global $JSINFO, $INFO, $ACT;
+        // TOC control should be changeable in only normal page
+        if (( empty($ACT) || ($ACT=='show') || ($ACT=='preview')) == false) return;
+
+        // retrieve from metadata
+        $metadata =& $INFO['meta']['plugin'][$this->getPluginName()];
+        if (isset($metadata['toc']['initial_state'])) {
+            $JSINFO['toc']['initial_state'] = $metadata['toc']['initial_state'];
+        }
+    }
+
+    /**
+     * Add javascript information to script meta headers
+     */
+    public function _hookjs(Doku_Event $event)
+    {
+        $plugin_url = DOKU_REL.'lib/plugins/'.$this->getPluginName();
+        $event->data['script'][] = [
+            'type' => 'text/javascript',
+            'charset' => 'utf-8',
+            '_data' => '',
+            'src' => $plugin_url.'/js/toc_status.js',
+        ];
     }
 
 }

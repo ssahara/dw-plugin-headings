@@ -17,23 +17,19 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
      */
     public function register(Doku_Event_Handler $controller)
     {
-        always: {
-            $controller->register_hook(
-               'PARSER_HANDLER_DONE', 'BEFORE', $this, 'rewrite_header_instructions', []
-            );
-            $controller->register_hook(
-                'PARSER_METADATA_RENDER', 'BEFORE', $this, 'extend_TableOfContents', ['before']
-            );
-            $controller->register_hook(
-                // event handler hook must be executed "earlier" than default
-                'PARSER_METADATA_RENDER', 'AFTER',  $this, 'extend_TableOfContents', [], -100
-            );
-        }
-        if ($this->getConf('tocDisplay') == 'disabled') {
-            $controller->register_hook(
-               'TPL_TOC_RENDER', 'BEFORE', $this, 'tpl_toc', []
-            );
-        }
+        $controller->register_hook(
+           'PARSER_HANDLER_DONE', 'BEFORE', $this, 'rewrite_header_instructions', []
+        );
+        $controller->register_hook(
+            'PARSER_METADATA_RENDER', 'BEFORE', $this, 'extend_TableOfContents', ['before']
+        );
+        $controller->register_hook(
+            // event handler hook must be executed "earlier" than default
+            'PARSER_METADATA_RENDER', 'AFTER',  $this, 'extend_TableOfContents', [], -100
+        );
+        $controller->register_hook(
+            'PARSER_CACHE_USE', 'BEFORE', $this, '_handleParserCache', []
+        );
     }
 
 
@@ -230,39 +226,34 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
         $toc = $tableofcontents;
     }
 
-
     /**
-     * TPL_TOC_RENDER event handler
+     * PARSER_CACHE_USE event handler
      *
-     * Adjust global TOC array according to a given config settings
-     * @see also inc/template.php function tpl_toc($return = false)
+     * Manipulate cache validity (to get correct toc of other page)
+     * When Embedded TOC should refer to other page, check dependency
+     * to get correct toc items from relevant .meta files
      */
-    public function tpl_toc(Doku_Event $event)
+    public function _handleParserCache(Doku_Event $event)
     {
-        global $INFO, $ACT, $TOC, $conf;
+        $cache =& $event->data;
+        if (!$cache->page) return;
 
-        if ($ACT == 'admin') return;
+        switch ($cache->mode) {
+            case 'i':        // instruction cache
+            case 'metadata': // metadata cache
+                break;
+            case 'xhtml':    // xhtml cache
+                // request check with additional dependent files
+                $metadata_key = 'plugin '.$this->getPluginName();
+                $metadata_key.= ' '.'depends';
+                $depends = p_get_metadata($cache->page, $metadata_key);
+                if (!$depends) break;
 
-        $notoc = !($INFO['meta']['internal']['toc']); // true if toc should not be displayed
-
-        if ($notoc || ($conf['tocminheads'] == 0)) {
-            $event->data = $toc = [];
-            return;
-        }
-
-        $toc = $INFO['meta']['description']['tableofcontents'] ?? [];
-
-        // modify toc items directly within loop by reference
-        foreach ($toc as $k => &$item) {
-            if (empty($item['title'])
-                || ($item['level'] < $conf['toptoclevel'])
-                || ($item['level'] > $conf['maxtoclevel'])
-            ) {
-                unset($toc[$k]);
-            }
-            $item['level'] = $item['level'] - $conf['toptoclevel'] +1;
-        }
-        unset($item);
-        $event->data = (count($toc) < $conf['tocminheads']) ? [] : $toc;
+                $cache->depends['files'] = isset($cache->depends['files'])
+                        ? array_merge($cache->depends['files'], $depends)
+                        : $depends;
+        } // end of switch
+        return;
     }
+
 }
