@@ -10,29 +10,30 @@
  * {{page>.namespace:page}} for "page" in subnamespace "namespace" 
  * {{page>page#section}} for a section of "page" 
  * 
- * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html) 
+ * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Esther Brunner <wikidesign@gmail.com>
  * @author     Christopher Smith <chris@jalakai.co.uk>
  * @author     Gina Häußge, Michael Klier <dokuwiki@chimeric.de>
- */ 
- 
-if(!defined('DOKU_INC')) die();
- 
-class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
+ */
 
+if (!defined('DOKU_INC')) die();
+
+class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
+{
     /** @var $helper helper_plugin_include */
     var $helper = null;
 
-    function getType() { return 'protected'; }
-    function getPType(){ return 'block'; }
-    function getSort() { return 30; }
+    public function getType() { return 'protected'; }
+    public function getPType(){ return 'block'; }
+    public function getSort() { return 30; }
 
     /**
      * Connect pattern to lexer
      */
     protected $mode, $pattern;
 
-    function preConnect() {
+    public function preConnect()
+    {
         // syntax mode, drop 'syntax_' from class name
         $this->mode = substr(get_class($this), 7);
 
@@ -44,7 +45,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         $this->pattern[4] = '{{tagtopic>.+?}}';  // {{tagtopic>[tag]&[flags]}}
     }
 
-    function connectTo($mode) {
+    public function connectTo($mode)
+    {
         if (!plugin_isdisabled('include')) {
             $this->Lexer->addSpecialPattern($this->pattern[0], $mode, $this->mode);
             $this->Lexer->addSpecialPattern($this->pattern[1], $mode, $this->mode);
@@ -63,7 +65,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      * @param Doku_Handler $handler The hanlder object
      * @return array The instructions of the plugin
      */
-    function handle($match, $state, $pos, Doku_Handler $handler) {
+    function handle($match, $state, $pos, Doku_Handler $handler)
+    {
         global $ID;
 
       //static $includeHelper;
@@ -125,7 +128,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      *
      * @author Michael Hamann <michael@content-space.de>
      */
-    function render($format, Doku_Renderer $renderer, $data) {
+    function render($format, Doku_Renderer $renderer, $data)
+    {
         global $ACT, $ID, $conf;
 
         // get data, of which $level has set in PARSER_HANDLER_DONE event handler
@@ -165,6 +169,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         $toc = []; // partial toc that correspond to the include instruction
 
         if ($format == 'metadata') {
+            $metadata =& $renderer->meta['plugin'][$this->getPluginName()];
+
             // remove old persistent metadata of previous versions of the include plugin
             if (isset($renderer->persistent['plugin_include'])) {
                 unset($renderer->persistent['plugin_include']);
@@ -175,10 +181,10 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
             if (!isset($renderer->meta['plugin_include'])) {
                 $renderer->meta['plugin_include'] = [];
             }
-            $metadata =& $renderer->meta['plugin_include'];
-            $metadata['instructions'][] = compact('mode', 'page', 'sect', 'parent_id', $flags);
-            $metadata['pages'] = array_merge( (array)$metadata['pages'], $pages);
-            $metadata['include_content'] = isset($_REQUEST['include_content']);
+            $meta =& $renderer->meta['plugin_include'];
+            $meta['instructions'][] = compact('mode', 'page', 'sect', 'parent_id', $flags);
+            $meta['pages'] = array_merge( (array)$meta['pages'], $pages);
+            $meta['include_content'] = isset($_REQUEST['include_content']);
         } else {
             // $format == 'xhtml'
             global $INFO;
@@ -201,12 +207,12 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
 
             $instructions = $this->_get_instructions($id, $sect, $level, $flags, $root_id, $pos);
 
-            // store headers found in the instructions for complete tableofcontents
+            // store headers found in the instructions to complete tableofcontents
             // which is built later in PARSER_METADATA_RENDER event handler
             if ($format == 'metadata') {
                 foreach ($instructions as $instruction) {
                     if ($instruction[0] == 'header') {
-                        $metadata['headers'][$pos][$id][] = $instruction[1];
+                        $metadata['include'][$pos][$id][] = $instruction[1];
                     }
                 } // end of foreach
             }
@@ -238,7 +244,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      * 
      * called when $flags['linkonly'] is on
      */
-    function render_linkonly(Doku_Renderer $renderer, $pages, $sect=null, $flags) {
+    function render_linkonly(Doku_Renderer $renderer, $pages, $sect=null, $flags)
+    {
         if (!$flags['linkonly']) return false;
 
         foreach ($pages as $page) {
@@ -297,7 +304,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      * @author Satoshi Sahara <sahara.satoshi@gmail.com>
      * @see also https://www.dokuwiki.org/devel:parser#instructions_data_format
      */
-    private function dwInstruction($method, array $params, $pos=null) {
+    private function dwInstruction($method, array $params, $pos=null)
+    {
         $instruction = [];
         $instruction[0] = $method;
         $instruction[1] = (array)$params;
@@ -312,7 +320,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      *
      * @author Satoshi Sahara <sahara.satoshi@gmail.com>
      */
-    private function pluginInstruction($method, array $params, $pos=null) {
+    private function pluginInstruction($method, array $params, $pos=null)
+    {
         return $this->dwInstruction('plugin',[$method, $params], $pos);
     }
 
@@ -322,7 +331,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      * @author Michael Klier <chi@chimeric.de>
      * @author Michael Hamann <michael@content-space.de>
      */
-    function _get_instructions($page, $sect, $lvl, $flags, $root_id=null, $pos) {
+    function _get_instructions($page, $sect, $lvl, $flags, $root_id=null, $pos)
+    {
         $id = ($sect) ? $page.'#'.$sect : $page;
         $this->includes[$id] = true; // legacy code for keeping compatibility with other plugins
 
@@ -368,7 +378,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      *
      * @author Michael Klier <chi@chimeric.de>
      */
-    function _convert_instructions(&$ins, $lvl, $page, $sect, $flags, $root_id, $pos) {
+    function _convert_instructions(&$ins, $lvl, $page, $sect, $flags, $root_id, $pos)
+    {
         global $conf;
 
         $ns  = getNS($page);
@@ -581,7 +592,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
     /**
      * Add include entry wrapper for included instructions
      */
-    function _wrap_instructions(&$ins, $lvl, $page, $secid, $flags) {
+    function _wrap_instructions(&$ins, $lvl, $page, $secid, $flags)
+    {
         $include_secid = $secid;
         array_unshift($ins, $this->pluginInstruction(
             'include_wrap',['open', $page, $flags['redirect'], $include_secid]
@@ -656,8 +668,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      * @param string $root_id        The including page
      * @param array  $pos            The byte position in including page
      */
-    private function adapt_links(&$ins, $page, $root_id, $pos) {
-
+    private function adapt_links(&$ins, $page, $root_id, $pos)
+    {
         global $INFO;
         if (isset($INFO['id']) && $INFO['id'] == $root_id) {
             // Note: $INFO is not available in render metadata stage
@@ -750,7 +762,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      *
      * @author Michael Klier <chi@chimeric.de>
      */ 
-    function _get_section(&$ins, $sect, $strict=false) {
+    function _get_section(&$ins, $sect, $strict=false)
+    {
         $header_found  = null;
         $section_close = null;
         $level  = null;
@@ -809,7 +822,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      *
      * @author Michael Klier <chi@chimeric.de>
      */
-    function _get_firstsec(&$ins, $page, $flags) {
+    function _get_firstsec(&$ins, $page, $flags)
+    {
         $header_found  = null;
         $section_close = null;
         $more_sections = false;
@@ -862,7 +876,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      *
      * @author Michael Hamann <michael@content-space.de>
      */
-    function _get_included_pages($mode, $page, $sect, $parent_id, $flags) {
+    function _get_included_pages($mode, $page, $sect, $parent_id, $flags)
+    {
         $pages = [];
         switch ($mode) {
             case 'namespace':
@@ -914,7 +929,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      * @param int    $depth  $flags['depth'] (default 1)
      *                       maximum depth of includes, 0 for unlimited
      */
-    private function _get_pages_in_ns($ns='/', $depth=1) {
+    private function _get_pages_in_ns($ns='/', $depth=1)
+    {
         global $conf;
         $opts = ['depth' => $depth, 'skipacl' => false];
         search($pagearrays, $conf['datadir'], 'search_allpages', $opts, $ns);
@@ -929,7 +945,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
     /**
      * Get a list of tagged pages with specified tag name
      */
-    private function _get_tagged_pages($tagname='') {
+    private function _get_tagged_pages($tagname='')
+    {
         /** @var helper_plugin_tag $tagHelper */
         static $tagHelper;
         if (!isset($tagHelper)) {
@@ -953,7 +970,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      * @param string $sortOrder    $flags['order'] (default 'id')
      * @param bool   $sortReverse  $flags['rsort'] (default 0)
      */
-    private function _sort_pages(array $pages, $sortOrder='id', $sortReverse=0) {
+    private function _sort_pages(array $pages, $sortOrder='id', $sortReverse=0)
+    {
         if ($sortOrder == 'id') {
             if ($sortReverse) {
                 usort($pages, array($this,'_r_strnatcasecmp'));
@@ -1017,7 +1035,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      * 0 if str1 is lesser than
      * str2, and 0 if they are equal.
      */
-    function _r_strnatcasecmp($a, $b) {
+    function _r_strnatcasecmp($a, $b)
+    {
         return strnatcasecmp($b, $a);
     }
 
@@ -1025,7 +1044,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
      * This function generates the list of all included pages from a list of metadata
      * instructions.
      */
-    function _get_included_pages_from_meta_instructions($instructions) {
+    function _get_included_pages_from_meta_instructions($instructions)
+    {
         $pages = [];
         foreach ($instructions as $instruction) {
             $mode      = $instruction['mode'];
@@ -1040,12 +1060,13 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
         }
         return $pages;
     }
-    
+
     /**
      *  Get wiki language from "HTTP_ACCEPT_LANGUAGE"
      *  We allow the pattern e.g. "ja,en-US;q=0.7,en;q=0.3"
      */
-    function _get_language_of_wiki($id, $parent_id) {
+    function _get_language_of_wiki($id, $parent_id)
+    {
        global $conf;
        $result = $conf['lang'];
        if (strpos($id, '@BROWSER_LANG@') !== false) {
@@ -1074,11 +1095,12 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin {
        }
        return cleanID($result);
     }
-    
+
     /**
      * Makes user or date dependent includes possible
      */
-    function _apply_macro($id, $parent_id) {
+    private function _apply_macro($id, $parent_id)
+    {
         global $INFO;
         global $auth;
         

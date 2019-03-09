@@ -126,7 +126,7 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
         // STEP 1: collect all headers of the page from instruction data
         $header_instructions = [];
         $instructions = p_cached_instructions(wikiFN($ID), true, $ID) ?? [];
-        $metadata =& $event->data['current']['plugin_include'];
+        $metadata =& $event->data['current']['plugin'][$this->getPluginName()];
 
         foreach ($instructions as $instruction) {
             // get call name
@@ -146,7 +146,7 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
                     // $page = $instruction[1][1][1];
                     // $sect = $instruction[1][1][2];
                     // get headers from metadata (stored by include syntax component)
-                    $data = $metadata['headers'][$pos] ?? [];
+                    $data = $metadata['include'][$pos] ?? [];
                     foreach ($data as $page => $included_headers) {
                         $header_instructions = array_merge(
                                    $header_instructions,
