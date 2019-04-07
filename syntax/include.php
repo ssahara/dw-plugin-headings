@@ -65,12 +65,9 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
      * @param Doku_Handler $handler The hanlder object
      * @return array The instructions of the plugin
      */
-    function handle($match, $state, $pos, Doku_Handler $handler)
+    public function handle($match, $state, $pos, Doku_Handler $handler)
     {
         global $ID;
-
-      //static $includeHelper;
-      //isset($includeHelper) || $includeHelper = $this->loadHelper('include', true);
 
         if (substr($match, 2, 7) == 'INCLUDE') {
             // use case {{INCLUDE [flags] >[id]#[section]}}
@@ -119,6 +116,10 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
             $extra = [$match,''];
         }
 
+        static $includeHelper;
+        isset($includeHelper) || $includeHelper = $this->loadHelper('include', true);
+        $flags = $includeHelper->get_flags($flags);
+
         $level = null; // it will be set in PARSER_HANDLER_DONE event handler
         return $data = [$mode, $page, $sect, $flags, $level, $pos, $extra];
     }
@@ -128,16 +129,12 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
      *
      * @author Michael Hamann <michael@content-space.de>
      */
-    function render($format, Doku_Renderer $renderer, $data)
+    public function render($format, Doku_Renderer $renderer, $data)
     {
         global $ACT, $ID, $conf;
 
         // get data, of which $level has set in PARSER_HANDLER_DONE event handler
         [$mode, $page, $sect, $flags, $level, $pos, $extra] = $data;
-
-        static $includeHelper;
-        isset($includeHelper) || $includeHelper = $this->loadHelper('include', true);
-        $flags = $includeHelper->get_flags($flags);
 
         if ($format == 'xhtml' && $ACT == 'preview') {
             [$match, $note] = $extra;
@@ -166,16 +163,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
             unset($flags['linkonly'], $flags['parlink']);
         }
 
-        $toc = []; // partial toc that correspond to the include instruction
-
         if ($format == 'metadata') {
             $metadata =& $renderer->meta['plugin'][$this->getPluginName()];
-
-            // remove old persistent metadata of previous versions of the include plugin
-            if (isset($renderer->persistent['plugin_include'])) {
-                unset($renderer->persistent['plugin_include']);
-                unset($renderer->meta['plugin_include']);
-            }
 
             /** @var Doku_Renderer_metadata $renderer */
             if (!isset($renderer->meta['plugin_include'])) {
@@ -188,7 +177,6 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         } else {
             // $format == 'xhtml'
             global $INFO;
-            $toc = $INFO['meta']['plugin_include']['tableofcontents'][$pos];
         }
 
         foreach ($pages as $page) {
@@ -244,7 +232,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
      * 
      * called when $flags['linkonly'] is on
      */
-    function render_linkonly(Doku_Renderer $renderer, $pages, $sect=null, $flags)
+    protected function render_linkonly(Doku_Renderer $renderer, $pages, $sect=null, $flags)
     {
         if (!$flags['linkonly']) return false;
 
@@ -331,7 +319,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
      * @author Michael Klier <chi@chimeric.de>
      * @author Michael Hamann <michael@content-space.de>
      */
-    function _get_instructions($page, $sect, $lvl, $flags, $root_id=null, $pos)
+    protected function _get_instructions($page, $sect, $lvl, $flags, $root_id=null, $pos)
     {
         $id = ($sect) ? $page.'#'.$sect : $page;
         $this->includes[$id] = true; // legacy code for keeping compatibility with other plugins
@@ -378,7 +366,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
      *
      * @author Michael Klier <chi@chimeric.de>
      */
-    function _convert_instructions(&$ins, $lvl, $page, $sect, $flags, $root_id, $pos)
+    protected function _convert_instructions(&$ins, $lvl, $page, $sect, $flags, $root_id, $pos)
     {
         global $conf;
 
@@ -401,7 +389,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                     unset($ins[$k]);
                     break;
                 case 'header':
-                    // get section title of first section
+                    // get section title of the first section
                     if ($sect && !$sect_title) {
                         $sect_title = $instruction[1][0];
                     }
@@ -411,7 +399,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                     }
 
                     $conv_idx[] = $k;
-                    // get index of first header
+                    // get index of the first header
                     $first_header = ($first_header == -1) ? $k : -1;
                     // get max level of this instructions set
                     if (!$lvl_max || ($instruction[1][1] < $lvl_max)) {
@@ -464,7 +452,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                 default:
                     break;
             } // end of switch
-        } // end of foreeach
+        } // end of foreach
+        unset($instruction);
 
         // calculate difference between header/section level and include level
         $diff = 0;
@@ -513,7 +502,9 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                     //   <h1 id="hid"><a href="url-to-included-page">Headline</a></h1>
                     // ** ALTERNATIVE APPROACH in Heading PreProcessor (HPP) plugin **
                     // disable this feature.
-                  //$this->_permalink($ins[$i], $page, $sect, $flags);
+                  //$this->pluginInstruction('include_header',
+                  //    [$ins[$i][1][0], $ins[$i][1][1], $ins[$i][1][2], $page, $sect, $flags]
+                  //);
                     $has_permalink = true;
                 }
 
@@ -541,7 +532,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                     }
                 } 
             }
-        }
+        } // end of foreach
 
         // re-indexes the instructions, beacuse some of them may have dropped/unset
         $ins = array_values($ins);
@@ -553,13 +544,11 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
 
         // add edit button
         if ($flags['editbtn']) {
-          //$this->_editbtn($ins, $page, $sect, $sect_title, ($flags['redirect'] ? $root_id : false));
             $ins[] = $this->pluginInstruction('include_editbtn',[($sect ? $sect_title : $page)]);
         }
 
         // add footer
         if ($flags['footer']) {
-          //$ins[] = $this->_footer($page, $sect, $sect_title, $flags, $footer_lvl, $root_id);
             $ins[] = $this->pluginInstruction(
                 'include_footer',[$page, $sect, $sect_title, $flags, $root_id, $footer_lvl]
             );
@@ -592,7 +581,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
     /**
      * Add include entry wrapper for included instructions
      */
-    function _wrap_instructions(&$ins, $lvl, $page, $secid, $flags)
+    protected function _wrap_instructions(&$ins, $lvl, $page, $secid, $flags)
     {
         $include_secid = $secid;
         array_unshift($ins, $this->pluginInstruction(
@@ -617,50 +606,6 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
     }
 
     /**
-     * Appends instruction item for the include plugin footer
-     *
-     * @author Michael Klier <chi@chimeric.de>
-     */
-    function _footer($page, $sect, $sect_title, $flags, $footer_lvl, $root_id) {
-        $footer = [];
-        $footer[0] = 'plugin';
-        $footer[1] = array(
-            'include_footer',
-            array($page, $sect, $sect_title, $flags, $root_id, $footer_lvl)
-        );
-        return $footer;
-    }
-
-    /**
-     * Appends instruction item for an edit button
-     *
-     * @author Michael Klier <chi@chimeric.de>
-     */
-    function _editbtn(&$ins, $page, $sect, $sect_title, $root_id) {
-        $title = ($sect) ? $sect_title : $page;
-        $editbtn = [];
-        $editbtn[0] = 'plugin';
-        $editbtn[1] = array(
-            'include_editbtn',
-             array($title)
-        );
-        $ins[] = $editbtn;
-    }
-
-    /**
-     * Convert instruction item for a permalink header
-     *
-     * @author Michael Klier <chi@chimeric.de>
-     */
-    function _permalink(&$ins, $page, $sect, $flags) {
-        $ins[0] = 'plugin';
-        $ins[1] = array(
-            'include_header',
-            array($ins[1][0], $ins[1][1], $ins[1][2], $page, $sect, $flags)
-        );
-    }
-
-    /**
      * Convert internal and local links depending on the included pages
      *
      * @param array  $ins            The instructions that shall be adapted
@@ -668,7 +613,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
      * @param string $root_id        The including page
      * @param array  $pos            The byte position in including page
      */
-    private function adapt_links(&$ins, $page, $root_id, $pos)
+    protected function adapt_links(&$ins, $page, $root_id, $pos)
     {
         global $INFO;
         if (isset($INFO['id']) && $INFO['id'] == $root_id) {
@@ -755,6 +700,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                     break;
             } // end of switch
         }
+        unset($instruction);
     }
 
     /** 
@@ -762,7 +708,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
      *
      * @author Michael Klier <chi@chimeric.de>
      */ 
-    function _get_section(&$ins, $sect, $strict=false)
+    protected function _get_section(&$ins, $sect, $strict=false)
     {
         $header_found  = null;
         $section_close = null;
@@ -822,7 +768,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
      *
      * @author Michael Klier <chi@chimeric.de>
      */
-    function _get_firstsec(&$ins, $page, $flags)
+    protected function _get_firstsec(&$ins, $page, $flags)
     {
         $header_found  = null;
         $section_close = null;
@@ -876,7 +822,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
      *
      * @author Michael Hamann <michael@content-space.de>
      */
-    function _get_included_pages($mode, $page, $sect, $parent_id, $flags)
+    protected function _get_included_pages($mode, $page, $sect, $parent_id, $flags)
     {
         $pages = [];
         switch ($mode) {
@@ -929,7 +875,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
      * @param int    $depth  $flags['depth'] (default 1)
      *                       maximum depth of includes, 0 for unlimited
      */
-    private function _get_pages_in_ns($ns='/', $depth=1)
+    protected function _get_pages_in_ns($ns='/', $depth=1)
     {
         global $conf;
         $opts = ['depth' => $depth, 'skipacl' => false];
@@ -945,7 +891,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
     /**
      * Get a list of tagged pages with specified tag name
      */
-    private function _get_tagged_pages($tagname='')
+    protected function _get_tagged_pages($tagname='')
     {
         /** @var helper_plugin_tag $tagHelper */
         static $tagHelper;
@@ -1035,7 +981,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
      * 0 if str1 is lesser than
      * str2, and 0 if they are equal.
      */
-    function _r_strnatcasecmp($a, $b)
+    protected function _r_strnatcasecmp($a, $b)
     {
         return strnatcasecmp($b, $a);
     }
@@ -1043,6 +989,10 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
     /**
      * This function generates the list of all included pages from a list of metadata
      * instructions.
+     *
+     * このメソッドは RENDER_CACHE_USE event handeler
+     *   plugin/include/action.php cache_prepare()
+     * からコールされる
      */
     function _get_included_pages_from_meta_instructions($instructions)
     {
@@ -1065,7 +1015,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
      *  Get wiki language from "HTTP_ACCEPT_LANGUAGE"
      *  We allow the pattern e.g. "ja,en-US;q=0.7,en;q=0.3"
      */
-    function _get_language_of_wiki($id, $parent_id)
+    protected function _get_language_of_wiki($id, $parent_id)
     {
        global $conf;
        $result = $conf['lang'];
@@ -1099,7 +1049,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
     /**
      * Makes user or date dependent includes possible
      */
-    private function _apply_macro($id, $parent_id)
+    protected function _apply_macro($id, $parent_id)
     {
         global $INFO;
         global $auth;
