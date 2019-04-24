@@ -14,12 +14,17 @@ class syntax_plugin_headings_handler extends DokuWiki_Syntax_Plugin
 {
     public function getType() { return 'baseonly'; }
     public function getPType(){ return 'block'; }
-    public function getSort() { return 49; } // less than Doku_Parser_Mode_header = 50
 
     /**
-     * Connect pattern to lexer
+     * Connect pattern to lexer, implement Doku_Parser_Mode_Interface
      */
     protected $mode, $pattern;
+
+    // sort number used to determine priority of this mode
+    public function getSort() {
+    {
+        return 49; // less than Doku_Parser_Mode_header = 50
+    }
 
     public function preConnect()
     {

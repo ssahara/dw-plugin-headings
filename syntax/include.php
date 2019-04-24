@@ -25,12 +25,17 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
 
     public function getType() { return 'protected'; }
     public function getPType(){ return 'block'; }
-    public function getSort() { return 30; }
 
     /**
-     * Connect pattern to lexer
+     * Connect pattern to lexer, implement Doku_Parser_Mode_Interface
      */
     protected $mode, $pattern;
+
+    // sort number used to determine priority of this mode
+    public function getSort() {
+    {
+        return 30;
+    }
 
     public function preConnect()
     {

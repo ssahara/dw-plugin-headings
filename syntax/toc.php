@@ -18,7 +18,6 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin
 {
     public function getType() { return 'substition'; }
     public function getPType(){ return 'block'; }
-    public function getSort() { return 29; } // less than Doku_Parser_Mode_notoc = 30
 
     protected $tocStyle = [           // toc visual design options
         'TOC'       => 'toc_dokuwiki',
@@ -27,9 +26,15 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin
     ];
 
     /**
-     * Connect pattern to lexer
+     * Connect pattern to lexer, implement Doku_Parser_Mode_Interface
      */
     protected $mode, $pattern;
+
+    // sort number used to determine priority of this mode
+    public function getSort() {
+    {
+        return 29; // less than Doku_Parser_Mode_notoc = 30
+    }
 
     public function preConnect()
     {
