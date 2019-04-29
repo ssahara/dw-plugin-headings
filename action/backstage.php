@@ -18,7 +18,7 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
     public function register(Doku_Event_Handler $controller)
     {
         $controller->register_hook(
-           'PARSER_HANDLER_DONE', 'BEFORE', $this, 'rewrite_header_instructions', []
+            'PARSER_HANDLER_DONE', 'BEFORE', $this, 'rewrite_header_instructions', []
         );
         $controller->register_hook(
             'PARSER_METADATA_RENDER', 'BEFORE', $this, 'extend_TableOfContents', ['before']
