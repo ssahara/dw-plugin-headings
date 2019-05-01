@@ -198,7 +198,14 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                 $renderer->meta['relation']['haspart'][$id]    = $exists;
             }
 
+            // get instructions of the included page
             $instructions = $this->_get_instructions($id, $sect, $level, $flags, $root_id, $pos);
+
+            // converts instructions of the included page
+            $this->_convert_instructions(
+                $instructions,
+                $level, $id, $sect, $flags, $root_id, $pos
+            );
 
             // store headers found in the instructions to complete tableofcontents
             // which is built later in PARSER_METADATA_RENDER event handler
@@ -354,7 +361,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
             $ins = [];
         }
 
-        $this->_convert_instructions($ins, $lvl, $page, $sect, $flags, $root_id, $pos);
+        //$this->_convert_instructions($ins, $lvl, $page, $sect, $flags, $root_id, $pos);
         return $ins;
     }
 
