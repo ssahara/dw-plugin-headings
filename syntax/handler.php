@@ -21,7 +21,7 @@ class syntax_plugin_headings_handler extends DokuWiki_Syntax_Plugin
     protected $mode, $pattern;
 
     // sort number used to determine priority of this mode
-    public function getSort() {
+    public function getSort()
     {
         return 49; // less than Doku_Parser_Mode_header = 50
     }

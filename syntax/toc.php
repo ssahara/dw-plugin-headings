@@ -31,7 +31,7 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin
     protected $mode, $pattern;
 
     // sort number used to determine priority of this mode
-    public function getSort() {
+    public function getSort()
     {
         return 29; // less than Doku_Parser_Mode_notoc = 30
     }
