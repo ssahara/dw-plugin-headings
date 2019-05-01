@@ -32,7 +32,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
     protected $mode, $pattern;
 
     // sort number used to determine priority of this mode
-    public function getSort() {
+    public function getSort()
     {
         return 30;
     }
