@@ -41,6 +41,7 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
     public function rewrite_header_instructions(Doku_Event $event)
     {
         global $ID;
+        $section_level = 0;
 
         // load helper object
         isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
@@ -55,6 +56,9 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
                 : $instruction[0];
 
             switch ($call) {
+                case 'section_open':
+                    $section_level = $instruction[1][0];
+                    break;
                 case 'header':
                     [$text, $level, $pos] = $instruction[1];
                     //$text = $instruction[1][0];
@@ -85,6 +89,9 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
                     // 要検討：Built-in toc を初出限定にする処理を加えるか？
                     $data = $instruction[1][1];
                     [$pattern, $id, $tocProps] = $data;
+                    break;
+                case 'plugin_headings_include':
+                    $instruction[1][1][4] = $section_level;
                     break;
             } // end of switch $call
         }
