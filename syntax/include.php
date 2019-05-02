@@ -350,11 +350,34 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
             $ins = p_cached_instructions(wikiFN($page), false, $page);
             [$ID, $backupID] = [$backupID, null];
 
-            // filter instructions if needed
+            // get instructions of the section
             $this->_get_section($ins, $page, $sect, $flags);
         } else {
             $ins = [];
         }
+
+        // filter unnecessary instructions
+        foreach ($ins as $k => &$instruction) {
+            // get call name
+            $call = ($instruction[0] === 'plugin') ? 'plugin_'.$instruction[1][0] : $instruction[0];
+            switch ($call) {
+                case 'document_start':
+                case 'document_end':
+                case 'section_edit':
+                // FIXME skip other plugins?
+                case 'plugin_tag_tag':                 // skip tags
+                case 'plugin_discussion_comments':     // skip comments
+                case 'plugin_linkback':                // skip linkbacks
+                case 'plugin_data_entry':              // skip data plugin
+                case 'plugin_meta':                    // skip meta plugin
+                case 'plugin_indexmenu_tag':           // skip indexmenu sort tag
+                case 'plugin_include_sorttag':         // skip include plugin sort tag
+                    unset($ins[$k]);
+                    break;
+            } // end of switch $call
+        }
+        unset($instruction);
+        $ins = array_values($ins);
 
         //$this->_convert_instructions($ins, $lvl, $page, $sect, $flags, $root_id, $pos);
         return $ins;
@@ -389,12 +412,9 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         $this->adapt_links($ins, $page, $root_id, $pos);
 
         foreach ($ins as $k => &$instruction) {
-            switch ($instruction[0]) {
-                case 'document_start':
-                case 'document_end':
-                case 'section_edit':
-                    unset($ins[$k]);
-                    break;
+            // get call name
+            $call = ($instruction[0] === 'plugin') ? 'plugin_'.$instruction[1][0] : $instruction[0];
+            switch ($call) {
                 case 'header':
                     // get section title of the first section
                     if ($sect && !$sect_title) {
@@ -414,51 +434,40 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                     }
                     break;
                 case 'section_open':
-                    if ($flags['inline'])
+                    if ($flags['inline']) {
                         unset($ins[$k]);
-                    else
+                    } else {
                         $conv_idx[] = $k;
+                    }
                     break;
                 case 'section_close':
-                    if ($flags['inline'])
+                    if ($flags['inline']) {
                         unset($ins[$k]);
+                    }
                     break;
                 case 'nest':
                     $this->adapt_links($instruction[1][0], $page, $root_id, $pos);
                     break;
-                case 'plugin':
-                    // FIXME skip other plugins?
-                    switch ($instruction[1][0]) {
-                        case 'tag_tag':                 // skip tags
-                        case 'discussion_comments':     // skip comments
-                        case 'linkback':                // skip linkbacks
-                        case 'data_entry':              // skip data plugin
-                        case 'meta':                    // skip meta plugin
-                        case 'indexmenu_tag':           // skip indexmenu sort tag
-                        case 'include_sorttag':         // skip include plugin sort tag
-                            unset($ins[$k]);
-                            break;
-                        // adapt indentation level of nested includes
-                        case 'include_include':
-                            if (!$flags['inline'] && $flags['indent'])
+                case 'plugin_include_include':
+                    // adapt indentation level of nested includes
+                    if (!$flags['inline'] && $flags['indent']) {
                                 $instruction[1][1][4] += $lvl;
-                            break;
-                        /*
-                         * if there is already a closelastsecedit instruction (was added by
-                         * one of the section functions), store its position but delete it
-                         * as it can't be determined yet if it is needed,
-                         * i.e. if there is a header which generates a section edit (depends
-                         * on the levels, level adjustments, $no_header, ...)
-                         */
-                        case 'include_closelastsecedit':
-                            $endpos = $instruction[1][1][0];
-                            unset($ins[$k]);
-                            break;
                     }
+                    break;
+                case 'plugin_include_closelastsecedit':
+                    /*
+                     * if there is already a closelastsecedit instruction (was added by
+                     * one of the section functions), store its position but delete it
+                     * as it can't be determined yet if it is needed,
+                     * i.e. if there is a header which generates a section edit (depends
+                     * on the levels, level adjustments, $no_header, ...)
+                     */
+                    $endpos = $instruction[1][1][0];
+                    unset($ins[$k]);
                     break;
                 default:
                     break;
-            } // end of switch
+            } // end of switch $call
         } // end of foreach
         unset($instruction);
 
