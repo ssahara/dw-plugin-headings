@@ -783,7 +783,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
 
             $ins = array_slice($ins, $header_found, ($section_close - $header_found));
             if ($flags['firstsec'] && $flags['readmore'] && $more_sections) {
-                $ins[] = $this->pluginInstruction('include_readmore',[$page]);
+                $link = $sect ? $page.'#'.$sect : $page;
+                $ins[] = $this->pluginInstruction('include_readmore',[$link]);
             }
             $ins[] = $section_close_instruction;
 
