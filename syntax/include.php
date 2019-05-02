@@ -351,12 +351,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
             [$ID, $backupID] = [$backupID, null];
 
             // filter instructions if needed
-            if (!empty($sect)) {
-                $this->_get_section($ins, $sect);   // section required
-            }
-            if ($flags['firstsec']) {
-                $this->_get_firstsec($ins, $page, $flags);  // only first section
-            }
+            $this->_get_section($ins, $page, $sect, $flags);
         } else {
             $ins = [];
         }
@@ -715,85 +710,50 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         unset($instruction);
     }
 
-    /** 
-     * Get a section including its subsections
+    /**
+     * Get instructions of the section (and its subsections)
+     * or the first section of the page
+     * Relevant flags: "firstsec", "readmore"
      *
      * @author Michael Klier <chi@chimeric.de>
+     * @author Satoshi Sahara <sahara.satoshi@gmail.com>
      */ 
-    protected function _get_section(&$ins, $sect, $strict=false)
+    protected function _get_section(&$ins, $page, $sect, $flags)
     {
+        if (!$sect and !$flags['firstsec']) return;
+ 
         $header_found  = null;
         $section_close = null;
         $level  = null;
         $endpos = null; // end position in the input text, needed for section edit buttons
+        $more_sections = false;
 
         static $hpp; // headings preprocessor object
-        isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
-
         $check = []; // used for sectionID() in order to get the same ids as the xhtml renderer
 
         foreach ($ins as $k => $instruction) {
             switch ($instruction[0]) {
                 case 'section_close':
-                    if (isset($header_found)) {
+                    if (isset($header_found) && !isset($endpos)) {
                         $section_close = $k;
                     }
                     break;
                 case 'header':
-                    $hid = $hpp->sectionID($instruction[1][3]['hid'], $check);
-
-                    // find the header
-                    if (!isset($header_found) && ($hid == $sect)) {
-                        $header_found = $k;
-                        $level = $instruction[1][1];
+                    // find the section
+                    if (!isset($header_found)) {
+                        if ($sect) {
+                            isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
+                            $hid = $hpp->sectionID($instruction[1][3]['hid'], $check);
+                            if ($hid === $sect) {
+                                $header_found = $k;
+                                $level = $instruction[1][1];
+                            }
+                        } elseif ($flags['firstsec']) {
+                            $header_found = $k;
+                        }
                         break;
                     }
                     // find end position for the section edit button, if the header has found
-                    if (isset($header_found) && ($instruction[1][1] <= $level)) {
-                        $endpos = $instruction[1][2];
-                        break 2; // exit foreach loop
-                    }
-                    break;
-            } // end of switch
-        }
-
-        if (isset($header_found)) {
-            $ins = array_slice($ins, $header_found, ($section_close - $header_found +1));
-            // store the end position in the include_closelastsecedit instruction
-            // so it can generate a matching button
-            $ins[] = $this->pluginInstruction('include_closelastsecedit',[$endpos]);
-        } elseif ($strict) {
-            // the section not found
-            // nothing in strict mode, otherwise all instructions will be renderd
-            $ins = [];
-        } else {
-            // 指定セクションが見つからなかったら（ページ全体をイングルードせず）
-            // 欠落を示唆するように区切り線を2回引く
-            $ins = [];
-            $ins[] = $this->dwInstruction('hr',[]);
-            $ins[] = $this->dwInstruction('hr',[]);
-        }
-    }
-
-    /**
-     * Only display the first section of a page and a readmore link
-     *
-     * @author Michael Klier <chi@chimeric.de>
-     */
-    protected function _get_firstsec(&$ins, $page, $flags)
-    {
-        $header_found  = null;
-        $section_close = null;
-        $more_sections = false;
-        $endpos = null; // end position in the input text
-
-        foreach ($ins as $k => $instruction) {
-            switch ($instruction[0]) {
-                case 'section_close':
-                   $section_close = $k;
-                    break;
-                case 'header':
-                    $header_found = $header_found ?? $k;
                     /*
                      * Store the position of the last header that is encountered.
                      * As section_close/open-instructions are always found around header
@@ -801,12 +761,18 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                      * the last position that is stored here is exactly the position
                      * of the section_close/open at which the content is truncated.
                      */
-                    $endpos = $instruction[1][2];
+                    if (!isset($endpos)) { // header has already found
+                        if ($flags['firstsec']) {
+                            $endpos = $instruction[1][2];
+                        } elseif ($sect && ($instruction[1][1] <= $level)) {
+                            $endpos = $instruction[1][2];
+                        }
+                        $more_sections = (bool)$endpos;
+                    }
                     break;
                 case 'section_open':
                     if (isset($section_close)) {
-                        $more_sections = true;
-                        break 2;
+                        break 2; // exit foreach loop
                     }
                     break;
             } // end of switch
@@ -816,16 +782,20 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
             $section_close_instruction = $ins[$section_close];
 
             $ins = array_slice($ins, $header_found, ($section_close - $header_found));
-            if ($flags['readmore'] && $more_sections) {
+            if ($flags['firstsec'] && $flags['readmore'] && $more_sections) {
                 $ins[] = $this->pluginInstruction('include_readmore',[$page]);
             }
             $ins[] = $section_close_instruction;
+
             // store the end position in the include_closelastsecedit instruction
             // so it can generate a matching button
             $ins[] = $this->pluginInstruction('include_closelastsecedit',[$endpos]);
         } else {
-            // no section found, $ins has not modified nor truncated.
-            return;
+            // 指定セクションが見つからなかったら（ページ全体をイングルードせず）
+            // 欠落を示唆するように区切り線を2回引く
+            $ins = [];
+            $ins[] = $this->dwInstruction('hr',[]);
+            $ins[] = $this->dwInstruction('hr',[]);
         }
     }
 
