@@ -780,7 +780,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                     }
                     break;
                 case 'section_open':
-                    if (isset($section_close)) {
+                    if (isset($endpos, $section_close)) {
                         break 2; // exit foreach loop
                     }
                     break;
