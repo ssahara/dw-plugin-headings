@@ -356,32 +356,6 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
             $instructions = [];
         }
 
-        // filter unnecessary instructions
-        foreach ($instructions as $k => &$instruction) {
-            // get call name
-            $call = ($instruction[0] === 'plugin') ? 'plugin_'.$instruction[1][0] : $instruction[0];
-            switch ($call) {
-                case 'document_start':
-                case 'document_end':
-                case 'section_edit':
-                // FIXME skip other plugins?
-                case 'plugin_tag_tag':                 // skip tags
-                case 'plugin_discussion_comments':     // skip comments
-                case 'plugin_linkback':                // skip linkbacks
-                case 'plugin_data_entry':              // skip data plugin
-                case 'plugin_meta':                    // skip meta plugin
-                case 'plugin_indexmenu_tag':           // skip indexmenu sort tag
-                case 'plugin_include_sorttag':         // skip include plugin sort tag
-                    unset($instructions[$k]);
-                    break;
-                case 'plugin_headings_include':
-                  //error_log(' NESTED INCLUDE: '.var_export($instruction,1));
-                    break;
-            } // end of switch $call
-        }
-        unset($instruction);
-        $instructions = array_values($instructions);
-
         //$this->_convert_instructions($instructions, $lvl, $page, $sect, $flags, $root_id, $pos);
         return $instructions;
     }
@@ -732,8 +706,10 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
      */ 
     protected function _get_section(&$instructions, $page, $sect, $flags)
     {
-        if (!$sect and !$flags['firstsec']) return;
+        if (!$sect and !$flags['firstsec']) goto STEP2;
  
+        STEP1:
+        // get instructions of the section (and its subsections) or the first section
         $header_found  = null;
         $section_close = null;
         $level  = null;
@@ -743,8 +719,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         static $hpp; // headings preprocessor object
         $check = []; // used for sectionID() in order to get the same ids as the xhtml renderer
 
-        foreach ($instructions as $k => $instruction) {
-            switch ($instruction[0]) {
+        foreach ($instructions as $k => $ins) {
+            switch ($ins[0]) {
                 case 'section_close':
                     if (isset($header_found) && !isset($endpos)) {
                         $section_close = $k;
@@ -755,10 +731,10 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                     if (!isset($header_found)) {
                         if ($sect) {
                             isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
-                            $hid = $hpp->sectionID($instruction[1][3]['hid'], $check);
+                            $hid = $hpp->sectionID($ins[1][3]['hid'], $check);
                             if ($hid === $sect) {
                                 $header_found = $k;
-                                $level = $instruction[1][1];
+                                $level = $ins[1][1];
                             }
                         } elseif ($flags['firstsec']) {
                             $header_found = $k;
@@ -775,9 +751,9 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                      */
                     if (!isset($endpos)) { // header has already found
                         if ($flags['firstsec']) {
-                            $endpos = $instruction[1][2];
-                        } elseif ($sect && ($instruction[1][1] <= $level)) {
-                            $endpos = $instruction[1][2];
+                            $endpos = $ins[1][2];
+                        } elseif ($sect && ($ins[1][1] <= $level)) {
+                            $endpos = $ins[1][2];
                         }
                         $more_sections = (bool)$endpos;
                     }
@@ -810,6 +786,33 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
             $instructions[] = $this->dwInstruction('hr',[]);
             $instructions[] = $this->dwInstruction('hr',[]);
         }
+
+        STEP2:
+        // filter unnecessary instructions
+        foreach ($instructions as $k => &$ins) {
+            // get call name
+            $call = ($ins[0] === 'plugin') ? 'plugin_'.$ins[1][0] : $ins[0];
+            switch ($call) {
+                case 'document_start':
+                case 'document_end':
+                case 'section_edit':
+                // FIXME skip other plugins?
+                case 'plugin_tag_tag':                 // skip tags
+                case 'plugin_discussion_comments':     // skip comments
+                case 'plugin_linkback':                // skip linkbacks
+                case 'plugin_data_entry':              // skip data plugin
+                case 'plugin_meta':                    // skip meta plugin
+                case 'plugin_indexmenu_tag':           // skip indexmenu sort tag
+                case 'plugin_include_sorttag':         // skip include plugin sort tag
+                    unset($instructions[$k]);
+                    break;
+                case 'plugin_headings_include':
+                  //error_log(' NESTED INCLUDE: '.var_export($instruction,1));
+                    break;
+            } // end of switch $call
+        }
+        unset($ins);
+        $instructions = array_values($instructions);
     }
 
     /**
