@@ -706,93 +706,61 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
      */ 
     protected function _get_section(&$instructions, $page, $sect, $flags)
     {
-        if (!$sect and !$flags['firstsec']) goto STEP2;
- 
-        STEP1:
-        // get instructions of the section (and its subsections) or the first section
-        $header_found  = null;
-        $section_close = null;
-        $level  = null;
-        $endpos = null; // end position in the input text, needed for section edit buttons
-        $more_sections = false;
-
         static $hpp; // headings preprocessor object
-        $check = []; // used for sectionID() in order to get the same ids as the xhtml renderer
 
-        foreach ($instructions as $k => $ins) {
-            switch ($ins[0]) {
-                case 'section_close':
-                    if (isset($header_found) && !isset($endpos)) {
-                        $section_close = $k;
-                    }
-                    break;
-                case 'header':
-                    // find the section
-                    if (!isset($header_found)) {
-                        if ($sect) {
-                            isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
-                            $hid = $hpp->sectionID($ins[1][3]['hid'], $check);
-                            if ($hid === $sect) {
-                                $header_found = $k;
-                                $level = $ins[1][1];
-                            }
-                        } elseif ($flags['firstsec']) {
-                            $header_found = $k;
-                        }
-                        break;
-                    }
-                    // find end position for the section edit button, if the header has found
-                    /*
-                     * Store the position of the last header that is encountered.
-                     * As section_close/open-instructions are always found around header
-                     * instruction (unless some plugin modifies this), this means that
-                     * the last position that is stored here is exactly the position
-                     * of the section_close/open at which the content is truncated.
-                     */
-                    if (!isset($endpos)) { // header has already found
-                        if ($flags['firstsec']) {
-                            $endpos = $ins[1][2];
-                        } elseif ($sect && ($ins[1][1] <= $level)) {
-                            $endpos = $ins[1][2];
-                        }
-                        $more_sections = (bool)$endpos;
-                    }
-                    break;
-                case 'section_open':
-                    if (isset($endpos, $section_close)) {
-                        break 2; // exit foreach loop
-                    }
-                    break;
-            } // end of switch
+        STEP1:
+        // 不要callを削除しつつ、hid が $sect と一致する header から始まるセクションを残す
+        // upper_level を検出する
+        //   - sect指定のとき、 対応するheaderのレベルになる
+        //   - sect指定なし（ページ全体）の場合 最上位レベルを探す必要がある
+        // section_found  0: 見つかってない
+        //               +1: 見つかった
+        //               -1: sect指定なし 探す必要がない
+
+        $section_found  = $sect ? 0 : -1;
+        $section_level  = null; // upper level of the section
+        $section_endpos = null; // end position in the input text, needed for section edit buttons
+
+        if ($section_found === 0) {
+            isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
+            $check = []; // used for sectionID() in order to get the same ids as the xhtml renderer
         }
 
-        if (isset($header_found, $section_close)) {
-            $section_close_instruction = $instructions[$section_close];
-
-            $instructions = array_slice($instructions, $header_found, ($section_close - $header_found));
-            if ($flags['firstsec'] && $flags['readmore'] && $more_sections) {
-                $link = $sect ? $page.'#'.$sect : $page;
-                $instructions[] = $this->pluginInstruction('include_readmore',[$link]);
-            }
-            $instructions[] = $section_close_instruction;
-
-            // store the end position in the include_closelastsecedit instruction
-            // so it can generate a matching button
-            $instructions[] = $this->pluginInstruction('include_closelastsecedit',[$endpos]);
-        } else {
-            // 指定セクションが見つからなかったら（ページ全体をイングルードせず）
-            // 欠落を示唆するように区切り線を2回引く
-            $instructions = [];
-            $instructions[] = $this->dwInstruction('hr',[]);
-            $instructions[] = $this->dwInstruction('hr',[]);
-        }
-
-        STEP2:
-        // filter unnecessary instructions
         foreach ($instructions as $k => &$ins) {
             // get call name
             $call = ($ins[0] === 'plugin') ? 'plugin_'.$ins[1][0] : $ins[0];
             switch ($call) {
+                case 'header':
+                    if ($section_found === 0) { // $sect は何か指定があることは自明
+                        $hid = $hpp->sectionID($ins[1][3]['hid'], $check);
+                        if ($sect === $hid) {
+                            $section_found = $k;
+                            $section_level = $ins[1][1];
+                            continue 2;  // switch を脱出、foreach loop に進む
+                        }
+                    } elseif ($section_found && $flags['firstsec']) {
+                        // $section_found -1: ページインクルード 最初に出現するheader位置
+                        // $section_found  1: セクションインクルード 最初のサブセクションの開始位置
+                        isset($firstsec_header) || $firstsec_header[$k] = $instructions[$k];  //未使用
+                    }
+                    if ($section_found > 0 && is_null($section_endpos)) {
+                        if (!($ins[1][1] > $section_level)) { // not subsection
+                            // now the section ended, set end position of the section edit button
+                            // As section_close/open-instructions are always found around header
+                            // instruction (unless some plugin modifies this), this means that
+                            // the last position that is stored here is exactly the position
+                            // of the section_close/open at which the content is truncated.
+                            $section_endpos = $ins[1][2];
+                        }
+                    }
+                    break;
+                case 'section_open':
+                    break;
+                case 'section_close':
+                    if ($section_found) {
+                        isset($firstsec_header) || $firstsec_closed = $k;  //未使用
+                    }
+                    break;
                 case 'document_start':
                 case 'document_end':
                 case 'section_edit':
@@ -805,14 +773,86 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                 case 'plugin_indexmenu_tag':           // skip indexmenu sort tag
                 case 'plugin_include_sorttag':         // skip include plugin sort tag
                     unset($instructions[$k]);
-                    break;
-                case 'plugin_headings_include':
-                  //error_log(' NESTED INCLUDE: '.var_export($instruction,1));
-                    break;
-            } // end of switch $call
+                    continue 2;  // switch を脱出して、次の foreach loop に進む
+            }
+            if ($section_found === -1) {                                // page include mode
+                continue;
+            } elseif ($section_found === 0 || isset($section_endpos)) { // section include mode
+                unset($instructions[$k]);
+            }
         }
         unset($ins);
         $instructions = array_values($instructions);
+
+        // $sect と一致する header から始まるセクションが見つからなかった場合
+        if ($section_found === 0 || empty($instructions)) {
+            $instructions[] = $this->dwInstruction('hr',[]);
+            $instructions[] = $this->dwInstruction('p_open',[]);
+            $instructions[] = $this->dwInstruction('cdata',['⚠designated section not found...']);
+            $instructions[] = $this->dwInstruction('p_close',[]);
+            $instructions[] = $this->dwInstruction('hr',[]);
+        } elseif ($section_found === -1) {
+            // $sect の指定がなかった場合、セクションレベルを取得
+            foreach ($instructions as $k => $ins) {
+                if ($ins[0] == 'header') {
+                    $section_level = isset($section_level)
+                            ? min($section_level, $ins[1][1])
+                            : $ins[1][1];
+                }
+            }
+            $section_level = $section_level ?? 1;
+        }
+
+        // check the first call of the section
+        if (isset($instructions[0]) && $instructions[0][0] !== 'header') {
+            // 最初に出現する header 位置を探す
+            $k1 = array_search('header', array_column($instructions, 0));
+            if ($k1 !== false) {
+                // 最初に出現する header の見出しレベルの空セクションを生成する→ ボツ
+                // $lv = $instructions[$k1][1][1];
+                // $section_level の空セクションを生成する
+                $lv = $section_level;
+                $instruction = array_merge(
+                        $this->dwInstruction('header', ['', $lv, null]), // title,level,pos
+                        $this->dwInstruction('section_open', [$lv]),
+                        array_slice($instructions, 0, $k1),
+                        $this->dwInstruction('section_close', []),
+                        array_slice($instructions, $k1 -1),
+                );
+            } else {
+                // header 見出しがないので、レベル1見出しの空セクションを生成する
+                $lv = $section_level;
+                $instruction = array_merge(
+                        $this->dwInstruction('header', ['', $lv, null]), // title,level,pos
+                        $this->dwInstruction('section_open', [$lv]),
+                        $instructions,
+                        $this->dwInstruction('section_close', []),
+                );
+            }
+        }
+
+        STEP2:
+        // First Section flag
+        if ($flags['firstsec'] && $section_found) {
+            $k1 = array_search('section_close', array_column($instructions, 0));
+            if ($k1 !== false) { // Fisrt section が見つかった
+                // read more ?
+                $more_calls = (bool)($k1 < array_key_last($instructions)); // REQUIRE PHP 7.3 or later
+                if ($flags['readmore'] && $more_calls) {
+                    $link = $sect ? $page.'#'.$sect : $page;
+                    $lastcall = $instructions[$k1];
+                    $instructions = array_merge(
+                            array_slice($instructions, 0, $k1),
+                            $this->pluginInstruction('include_readmore',[$link]),
+                            $lastcall,
+                    );
+                }
+            } else { // Fisrt section が存在しない
+                // $instructions はそのまま、すなわち全体を返す
+            }
+        }
+
+        return;
     }
 
     /**
