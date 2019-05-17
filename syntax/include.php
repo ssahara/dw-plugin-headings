@@ -704,7 +704,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
      * @author Michael Klier <chi@chimeric.de>
      * @author Satoshi Sahara <sahara.satoshi@gmail.com>
      */ 
-    protected function _get_section(&$instructions, $page, $sect, $flags)
+    protected function _get_section(&$instructions, $page, $sect, $flags, $level=null)
     {
         static $hpp; // headings preprocessor object
 
@@ -851,6 +851,32 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                 // $instructions はそのまま、すなわち全体を返す
             }
         }
+
+        STEP3:
+        // Adjust header/section level of instructions
+        // インクルードセクションのレベル調整
+        // _get_section()メソッドの5番目の引数 $level を追加する
+        // $level は Include構文の記述位置での見出しレベルである
+        // flag indent header     : サブセクションとして挿入する $level +1
+        //      noindent header   : 兄弟セクションとして挿入する $level
+        //      indent noheader   : サブセクションとして挿入する hidden header
+        //      noindent noheader : 兄弟セクションとして挿入する hidden header
+
+        if (!isset($level)) $level = 1;
+        $diff = $level - $section_level + ($flags['indent'] ? 1 : 0);
+        foreach ($instructions as $k => &$ins) {
+            // get call name
+            $call = ($ins[0] === 'plugin') ? 'plugin_'.$ins[1][0] : $ins[0];
+            switch ($call) {
+                case 'header':
+                    $ins[1][1] = min(5, $ins[1][1] + $diff);
+                    break;
+                case 'section_open':
+                    $ins[1][0] = min(5, $ins[1][0] + $diff);
+                    break;
+            }
+        }
+        unset($ins);
 
         return;
     }
