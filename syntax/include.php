@@ -870,6 +870,14 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
             switch ($call) {
                 case 'header':
                     $ins[1][1] = min(5, $ins[1][1] + $diff);
+                    if ($k == 0 && $flags['noheader']) {
+                        // ** ALTERNATIVE APPROACH in Heading PreProcessor (HPP) plugin **
+                        // render the header as link anchor, instead delete it.
+                        if (isset($ins[1][3])) {
+                            $ins[1][3]['title'] = ''; // hidden header <a id=hid></a>
+                        }
+                        $ins[1][0] = '';
+                    }
                     break;
                 case 'section_open':
                     $ins[1][0] = min(5, $ins[1][0] + $diff);
