@@ -369,7 +369,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
      * instructions like tags, comments, linkbacks.
      *
      * Later all header/section levels are convertet to match the current
-     * inclusion level.
+     * inclusion level.                                // _get_section() で処理する
      *
      * @author Michael Klier <chi@chimeric.de>
      */
@@ -380,9 +380,9 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         $ns  = getNS($page);
 
         $conv_idx = [];      // conversion index
-        $lvl_max  = false;   // max level
+        $lvl_max  = false;   // max level              // _get_section() の $section_level と同じ
         $first_header = -1;
-        $no_header  = false;
+        $no_header  = false;                           // _get_section() で処理済なので常にfalseとする
         $sect_title = false;
         $endpos     = null;  // end position of the raw wiki text
 
@@ -398,9 +398,9 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                         $sect_title = $instruction[1][0];
                     }
                     // check if we need to skip the first header
-                    if ((!$no_header) && $flags['noheader']) {
-                        $no_header = true;
-                    }
+//                  if ((!$no_header) && $flags['noheader']) {
+//                      $no_header = true;
+//                  }
 
                     $conv_idx[] = $k;
                     // get index of the first header
@@ -452,10 +452,10 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         $diff = 0;
         $lvl_max = $lvl_max ?? 0; // if no level found in target, set to 0
         $diff = $lvl - $lvl_max + 1;
-        if ($no_header) $diff -= 1;  // push up one level if "noheader"
+//      if ($no_header) $diff -= 1;  // push up one level if "noheader"
 
         // convert headers and set footer/permalink
-        $hdr_deleted      = false;
+//      $hdr_deleted      = false;
         $has_permalink    = false;
         $footer_lvl       = false;
         $contains_secedit = false;
@@ -471,18 +471,18 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                     $section_close_at = $i;
                 }
 
-                if ($no_header && !$hdr_deleted) {
+//              if ($no_header && !$hdr_deleted) {
                     // ** ALTERNATIVE APPROACH in Heading PreProcessor (HPP) plugin **
                     // render the header as link anchor, instead delete it.
-                    $instructions[$i][1][3]['title'] = ''; // hidden header <a id=hid></a>
+//                  $instructions[$i][1][3]['title'] = ''; // hidden header <a id=hid></a>
                  // unset ($ins[$i]);
-                    $hdr_deleted = true;
-                    continue;
-                }
+//                  $hdr_deleted = true;
+//                  continue;
+//              }
 
                 if ($flags['indent']) {
-                    $lvl_new = (($instructions[$i][1][1] + $diff) > 5) ? 5 : ($instructions[$i][1][1] + $diff);
-                    $instructions[$i][1][1] = $lvl_new;
+//                  $lvl_new = (($instructions[$i][1][1] + $diff) > 5) ? 5 : ($instructions[$i][1][1] + $diff);
+//                  $instructions[$i][1][1] = $lvl_new;
                 }
 
                 if ($instructions[$i][1][1] <= $conf['maxseclevel'])
@@ -512,18 +512,18 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
             } else {
                 // it's a section
                 if ($flags['indent']) {
-                    $lvl_new = (($instructions[$i][1][0] + $diff) > 5) ? 5 : ($instructions[$i][1][0] + $diff);
-                    $instructions[$i][1][0] = $lvl_new;
+//                  $lvl_new = (($instructions[$i][1][0] + $diff) > 5) ? 5 : ($instructions[$i][1][0] + $diff);
+//                  $instructions[$i][1][0] = $lvl_new;
                 }
 
                 // check if noheader is used and set the footer level to the first section
                 if ($no_header && !$footer_lvl) {
                     if ($flags['indent'] && isset($lvl_new)) {
-                        $footer_lvl = $lvl_new;
+//                      $footer_lvl = $lvl_new;
                     } else {
-                        $footer_lvl = $lvl_max;
+//                      $footer_lvl = $lvl_max;
                     }
-                } 
+                }
             }
         } // end of foreach
 
@@ -794,7 +794,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         } elseif ($section_found === -1) {
             // $sect の指定がなかった場合、セクションレベルを取得
             foreach ($instructions as $k => $ins) {
-                if ($ins[0] == 'header') {
+                if ($ins[0] == 'header' && $ins[1][1]) {
                     $section_level = isset($section_level)
                             ? min($section_level, $ins[1][1])
                             : $ins[1][1];
@@ -886,6 +886,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         }
         unset($ins);
 
+        // re-indexes the instructions, beacuse some of them may have dropped/unset
+        // $instructions = array_values($instructions);
         return;
     }
 
