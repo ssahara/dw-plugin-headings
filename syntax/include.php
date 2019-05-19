@@ -351,7 +351,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
             [$ID, $backupID] = [$backupID, null];
 
             // get instructions of the section
-            $this->_get_section($instructions, $page, $sect, $flags);
+            $this->_get_section($instructions, $page, $sect, $flags, $lvl);
         } else {
             $instructions = [];
         }
@@ -388,14 +388,14 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
 
         $this->adapt_links($instructions, $page, $root_id, $pos);
 
-        foreach ($instructions as $k => &$instruction) {
+        foreach ($instructions as $k => &$ins) {
             // get call name
-            $call = ($instruction[0] === 'plugin') ? 'plugin_'.$instruction[1][0] : $instruction[0];
+            $call = ($ins[0] === 'plugin') ? 'plugin_'.$ins[1][0] : $ins[0];
             switch ($call) {
                 case 'header':
                     // get section title of the first section
                     if ($sect && !$sect_title) {
-                        $sect_title = $instruction[1][0];
+                        $sect_title = $ins[1][0];
                     }
                     // check if we need to skip the first header
 //                  if ((!$no_header) && $flags['noheader']) {
@@ -406,8 +406,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                     // get index of the first header
                     $first_header = ($first_header == -1) ? $k : -1;
                     // get max level of this instructions set
-                    if (!$lvl_max || ($instruction[1][1] < $lvl_max)) {
-                        $lvl_max = $instruction[1][1];
+                    if (!$lvl_max || ($ins[1][1] < $lvl_max)) {
+                        $lvl_max = $ins[1][1];
                     }
                     break;
                 case 'section_open':
@@ -423,12 +423,12 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                     }
                     break;
                 case 'nest':
-                    $this->adapt_links($instruction[1][0], $page, $root_id, $pos);
+                    $this->adapt_links($ins[1][0], $page, $root_id, $pos);
                     break;
                 case 'plugin_include_include':
                     // adapt indentation level of nested includes
                     if (!$flags['inline'] && $flags['indent']) {
-                                $instruction[1][1][4] += $lvl;
+                                $ins[1][1][4] += $lvl;
                     }
                     break;
                 case 'plugin_include_closelastsecedit':
@@ -439,14 +439,14 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                      * i.e. if there is a header which generates a section edit (depends
                      * on the levels, level adjustments, $no_header, ...)
                      */
-                    $endpos = $instruction[1][1][0];
-                    unset($instructions[$k]);
+//                  $endpos = $ins[1][1][0];
+//                  unset($instructions[$k]);
                     break;
                 default:
                     break;
             } // end of switch $call
         } // end of foreach
-        unset($instruction);
+        unset($ins);
 
         // calculate difference between header/section level and include level
         $diff = 0;
@@ -531,20 +531,20 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         $instructions = array_values($instructions);
 
         // close last open section of the included page if there is any
-        if ($contains_secedit) {
-            $instructions[] = $this->pluginInstruction('include_closelastsecedit',[$endpos]);
+        if ($contains_secedit) {                       // _get_section()で処理する
+//          $instructions[] = $this->pluginInstruction('include_closelastsecedit',[$endpos]);
         }
 
         // add edit button
-        if ($flags['editbtn']) {
-            $instructions[] = $this->pluginInstruction('include_editbtn',[($sect ? $sect_title : $page)]);
+        if ($flags['editbtn']) {                       // _get_section()で処理する
+//          $instructions[] = $this->pluginInstruction('include_editbtn',[($sect ? $sect_title : $page)]);
         }
 
         // add footer
-        if ($flags['footer']) {
-            $instructions[] = $this->pluginInstruction(
-                'include_footer',[$page, $sect, $sect_title, $flags, $root_id, $footer_lvl]
-            );
+        if ($flags['footer']) {                        // _get_section()で処理する
+//          $instructions[] = $this->pluginInstruction(
+//              'include_footer',[$page, $sect, $sect_title, $flags, $root_id, $footer_lvl]
+//          );
         }
 
         // wrap content at the beginning of the include that is not in a section in a section
@@ -720,6 +720,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         $section_found  = $sect ? 0 : -1;
         $section_level  = null; // upper level of the section
         $section_endpos = null; // end position in the input text, needed for section edit buttons
+        $endpos         = null; // end position of closelastsecedit (used in STEP3)
 
         if ($section_found === 0) {
             isset($hpp) || $hpp = $this->loadHelper($this->getPluginName());
@@ -736,7 +737,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                         if ($sect === $hid) {
                             $section_found = $k;
                             $section_level = $ins[1][1];
-                            continue 2;  // switch を脱出、foreach loop に進む
+                            continue 2;  // switch を脱出、次の foreach loop に進む
                         }
                     } elseif ($section_found && $flags['firstsec']) {
                         // $section_found -1: ページインクルード 最初に出現するheader位置
@@ -745,11 +746,13 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                     }
                     if ($section_found > 0 && is_null($section_endpos)) {
                         if (!($ins[1][1] > $section_level)) { // not subsection
-                            // now the section ended, set end position of the section edit button
-                            // As section_close/open-instructions are always found around header
-                            // instruction (unless some plugin modifies this), this means that
-                            // the last position that is stored here is exactly the position
-                            // of the section_close/open at which the content is truncated.
+                            /*
+                             * now the section ended, set end position of the section edit button
+                             * As section_close/open-instructions are always found around header
+                             * instruction (unless some plugin modifies this), this means that
+                             * the last position that is stored here is exactly the position
+                             * of the section_close/open at which the content is truncated.
+                             */
                             $section_endpos = $ins[1][2];
                         }
                     }
@@ -760,6 +763,17 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                     if ($section_found) {
                         isset($firstsec_header) || $firstsec_closed = $k;  //未使用
                     }
+                    break;
+                case 'plugin_include_closelastsecedit':
+                    /*
+                     * if there is already a closelastsecedit instruction (was added by
+                     * one of the section functions), store its position but delete it
+                     * as it can't be determined yet if it is needed,
+                     * i.e. if there is a header which generates a section edit (depends
+                     * on the levels, level adjustments, $no_header, ...)
+                     */
+                    $endpos = $ins[1][1][0];
+                    unset($instructions[$k]);
                     break;
                 case 'document_start':
                 case 'document_end':
@@ -862,6 +876,11 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         //      indent noheader   : サブセクションとして挿入する hidden header
         //      noindent noheader : 兄弟セクションとして挿入する hidden header
 
+        global $conf;
+
+        $contains_secedit = false;
+//      $endpos = null;
+
         if (!isset($level)) $level = 1;
         $diff = $level - $section_level + ($flags['indent'] ? 1 : 0);
         foreach ($instructions as $k => &$ins) {
@@ -870,6 +889,10 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
             switch ($call) {
                 case 'header':
                     $ins[1][1] = min(5, $ins[1][1] + $diff);
+
+                    if ($ins[1][1] <= $conf['maxseclevel'])
+                        $contains_secedit = true;
+
                     if ($k == 0 && $flags['noheader']) {
                         // ** ALTERNATIVE APPROACH in Heading PreProcessor (HPP) plugin **
                         // render the header as link anchor, instead delete it.
@@ -885,6 +908,25 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
             }
         }
         unset($ins);
+
+        // close last open section of the included page if there is any
+        if ($contains_secedit) {
+            $instructions[] = $this->pluginInstruction('include_closelastsecedit',[$endpos]);
+        }
+
+        // add edit button
+        if ($flags['editbtn']) {
+            $instructions[] = $this->pluginInstruction('include_editbtn',[($sect ? $sect_title : $page)]);
+        }
+
+        // add footer
+        if ($flags['footer']) {
+            $footer_lvl = $section_level;
+            $sect_title = $instructions[0][1][3]['title'] ?? '?';
+            $instructions[] = $this->pluginInstruction(
+                'include_footer',[$page, $sect, $sect_title, $flags, null, $footer_lvl]
+            );
+        }
 
         // re-indexes the instructions, beacuse some of them may have dropped/unset
         // $instructions = array_values($instructions);
