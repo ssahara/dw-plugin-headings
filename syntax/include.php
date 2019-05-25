@@ -672,7 +672,16 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
      */ 
     protected function _get_section(&$instructions, $page, $sect, $flags, $level=null)
     {
+        global $ID;
         static $hpp; // headings preprocessor object
+
+        if (!is_array($instructions)) {
+            // change the global $ID to $page as otherwise plugins like 
+            // the discussion plugin will save data for the wrong page
+            [$ID, $backupID] = [$page, $ID];
+            $instructions = p_cached_instructions(wikiFN($page), false, $page);
+            [$ID, $backupID] = [$backupID, null];
+        }
 
         STEP1:
         // 不要callを削除しつつ、hid が $sect と一致する header から始まるセクションを残す
@@ -730,6 +739,10 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                         isset($firstsec_header) || $firstsec_closed = $k;  //未使用
                     }
                     break;
+                case 'plugin_headings_include':
+                    // 再帰的なインクルードを検出
+                    $nested_include = true;
+                    break;
                 case 'plugin_include_closelastsecedit':
                     /*
                      * if there is already a closelastsecedit instruction (was added by
@@ -762,15 +775,16 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
             }
         }
         unset($ins);
-        $instructions = array_values($instructions);
 
         // $sect と一致する header から始まるセクションが見つからなかった場合
         if ($section_found === 0 || empty($instructions)) {
-            $instructions[] = $this->dwInstruction('hr',[]);
-            $instructions[] = $this->dwInstruction('p_open',[]);
-            $instructions[] = $this->dwInstruction('cdata',['⚠designated section not found...']);
-            $instructions[] = $this->dwInstruction('p_close',[]);
-            $instructions[] = $this->dwInstruction('hr',[]);
+            $instruction = array_merge(
+                    $this->dwInstruction('hr',[]),
+                    $this->dwInstruction('p_open',[]),
+                    $this->dwInstruction('cdata',['⚠designated section not found...']),
+                    $this->dwInstruction('p_close',[]),
+                    $this->dwInstruction('hr',[]),
+            );
         } elseif ($section_found === -1) {
             // $sect の指定がなかった場合、セクションレベルを取得
             foreach ($instructions as $k => $ins) {
@@ -782,6 +796,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
             }
             $section_level = $section_level ?? 1;
         }
+
+        $instructions = array_values($instructions);
 
         // check the first call of the section
         if (isset($instructions[0]) && $instructions[0][0] !== 'header') {
@@ -872,6 +888,26 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                     $ins[1][0] = min(5, $ins[1][0] + $diff);
                     break;
             }
+        }
+        unset($ins);
+
+        STEP3A:
+        $kmax = array_key_last($instructions) ?? -1;  // REQUIRE PHP 7.3 or later
+        $k = 0;
+        while ($k <= $kmax) {
+            $ins = $instructions[$k];
+            $call = ($ins[0] === 'plugin') ? 'plugin_'.$ins[1][0] : $ins[0];
+            if ($call === 'plugin_headings_include') {
+                // $data = [$mode, $page, $sect, $flags, $level, $pos, $extra];
+                //       = $ins[1][1]
+                $inserts = null;
+                $this->_get_section($inserts, $ins[1][1][1], $ins[1][1][2], $ins[1][1][3], $ins[1][1][4]);
+                // replace current include instruction with 
+                array_splice($instructions, $k, 1, $inserts);
+                unset($inserts);
+                $k += -1; // 置換したので、再チェックするためにカウンタを減らす
+            }
+            $k++;
         }
         unset($ins);
 
