@@ -217,10 +217,6 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                 } // end of foreach
             }
 
-            // add instructions entry wrapper for each page
-            $secid = 'plugin_include__'.str_replace(':', '__', $id);
-            $this->_wrap_instructions($instructions, $level, $id, $secid, $flags);
-
             if (!$flags['editbtn']) {
                 [$conf['maxseclevel'], $maxseclevel_org] = [0, $conf['maxseclevel']];
             }
@@ -566,36 +562,6 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                 }
             }
         }
-
-        // add instructions entry wrapper
-        //$this->_wrap_instructions($instructions, $lvl, $page, $flags);
-    }
-
-    /**
-     * Add include entry wrapper for included instructions
-     */
-    protected function _wrap_instructions(&$instructions, $lvl, $page, $secid, $flags)
-    {
-        $include_secid = $secid;
-        array_unshift($instructions, $this->pluginInstruction(
-            'include_wrap',['open', $page, $flags['redirect'], $include_secid]
-        ));
-        array_push($instructions, $this->pluginInstruction(
-            'include_wrap',['close']
-        ));
-
-        if (isset($flags['beforeeach'])) {
-            array_unshift($instructions, $this->dwInstruction('entity',[$flags['beforeeach']]));
-        }
-        if (isset($flags['aftereach'])) {
-            array_push($instructions, $this->dwInstruction('entity',[$flags['aftereach']]));
-        }
-
-        // close previous section if any and re-open after inclusion
-        if ($lvl != 0 && $this->sec_close && !$flags['inline']) {
-            array_unshift($instructions, $this->dwInstruction('section_close',[]));
-            array_push($instructions, $this->dwInstruction('section_open',[$lvl]));
-        }
     }
 
     /**
@@ -909,6 +875,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         }
         unset($ins);
 
+        STEP4:
         // close last open section of the included page if there is any
         if ($contains_secedit) {
             $instructions[] = $this->pluginInstruction('include_closelastsecedit',[$endpos]);
@@ -927,6 +894,30 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                 'include_footer',[$page, $sect, $sect_title, $flags, null, $footer_lvl]
             );
         }
+
+        STEP5:
+        // Add include entry wrapper for included instructions
+        $secid = 'plugin_include__'.str_replace(':', '__', $page);
+        array_unshift($instructions, $this->pluginInstruction(
+            'include_wrap',['open', $page, $flags['redirect'], $secid]
+        ));
+        array_push($instructions, $this->pluginInstruction(
+            'include_wrap',['close']
+        ));
+
+        if (isset($flags['beforeeach'])) {
+            array_unshift($instructions, $this->dwInstruction('entity',[$flags['beforeeach']]));
+        }
+        if (isset($flags['aftereach'])) {
+            array_push($instructions, $this->dwInstruction('entity',[$flags['aftereach']]));
+        }
+
+        // close previous section if any and re-open after inclusion
+        if ($level != 0 && $this->sec_close && !$flags['inline']) {
+            array_unshift($instructions, $this->dwInstruction('section_close',[]));
+            array_push($instructions, $this->dwInstruction('section_open',[$lvl]));
+        }
+
 
         // re-indexes the instructions, beacuse some of them may have dropped/unset
         // $instructions = array_values($instructions);
