@@ -364,60 +364,16 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
      * start/end instructions, converts links, and removes unwanted
      * instructions like tags, comments, linkbacks.
      *
-     * Later all header/section levels are convertet to match the current
-     * inclusion level.                                // _get_section() で処理する
-     *
      * @author Michael Klier <chi@chimeric.de>
      */
     protected function _convert_instructions(&$instructions, $lvl, $page, $sect, $flags, $root_id, $pos)
     {
-        global $conf;
-
-        $ns  = getNS($page);
-
-        $conv_idx = [];      // conversion index
-        $lvl_max  = false;   // max level              // _get_section() の $section_level と同じ
-        $first_header = -1;
-        $no_header  = false;                           // _get_section() で処理済なので常にfalseとする
-        $sect_title = false;
-        $endpos     = null;  // end position of the raw wiki text
-
         $this->adapt_links($instructions, $page, $root_id, $pos);
 
         foreach ($instructions as $k => &$ins) {
             // get call name
             $call = ($ins[0] === 'plugin') ? 'plugin_'.$ins[1][0] : $ins[0];
             switch ($call) {
-                case 'header':
-                    // get section title of the first section
-                    if ($sect && !$sect_title) {
-                        $sect_title = $ins[1][0];
-                    }
-                    // check if we need to skip the first header
-//                  if ((!$no_header) && $flags['noheader']) {
-//                      $no_header = true;
-//                  }
-
-                    $conv_idx[] = $k;
-                    // get index of the first header
-                    $first_header = ($first_header == -1) ? $k : -1;
-                    // get max level of this instructions set
-                    if (!$lvl_max || ($ins[1][1] < $lvl_max)) {
-                        $lvl_max = $ins[1][1];
-                    }
-                    break;
-                case 'section_open':
-                    if ($flags['inline']) {
-                        unset($instructions[$k]);
-                    } else {
-                        $conv_idx[] = $k;
-                    }
-                    break;
-                case 'section_close':
-                    if ($flags['inline']) {
-                        unset($instructions[$k]);
-                    }
-                    break;
                 case 'nest':
                     $this->adapt_links($ins[1][0], $page, $root_id, $pos);
                     break;
@@ -427,141 +383,14 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                                 $ins[1][1][4] += $lvl;
                     }
                     break;
-                case 'plugin_include_closelastsecedit':
-                    /*
-                     * if there is already a closelastsecedit instruction (was added by
-                     * one of the section functions), store its position but delete it
-                     * as it can't be determined yet if it is needed,
-                     * i.e. if there is a header which generates a section edit (depends
-                     * on the levels, level adjustments, $no_header, ...)
-                     */
-//                  $endpos = $ins[1][1][0];
-//                  unset($instructions[$k]);
-                    break;
                 default:
                     break;
             } // end of switch $call
         } // end of foreach
         unset($ins);
 
-        // calculate difference between header/section level and include level
-        $diff = 0;
-        $lvl_max = $lvl_max ?? 0; // if no level found in target, set to 0
-        $diff = $lvl - $lvl_max + 1;
-//      if ($no_header) $diff -= 1;  // push up one level if "noheader"
-
-        // convert headers and set footer/permalink
-//      $hdr_deleted      = false;
-        $has_permalink    = false;
-        $footer_lvl       = false;
-        $contains_secedit = false;
-        $section_close_at = false;
-        foreach ($conv_idx as $i) {
-            if ($instructions[$i][0] == 'header') {
-                if ($section_close_at === false
-                    && isset($instructions[$i+1]) && $instructions[$i+1][0] == 'section_open'
-                ){
-                    // store the index of the first heading that is followed by a new section
-                    // the wrap plugin creates sections without section_open so the section
-                    // shouldn't be closed before them
-                    $section_close_at = $i;
-                }
-
-//              if ($no_header && !$hdr_deleted) {
-                    // ** ALTERNATIVE APPROACH in Heading PreProcessor (HPP) plugin **
-                    // render the header as link anchor, instead delete it.
-//                  $instructions[$i][1][3]['title'] = ''; // hidden header <a id=hid></a>
-                 // unset ($ins[$i]);
-//                  $hdr_deleted = true;
-//                  continue;
-//              }
-
-                if ($flags['indent']) {
-//                  $lvl_new = (($instructions[$i][1][1] + $diff) > 5) ? 5 : ($instructions[$i][1][1] + $diff);
-//                  $instructions[$i][1][1] = $lvl_new;
-                }
-
-                if ($instructions[$i][1][1] <= $conf['maxseclevel'])
-                    $contains_secedit = true;
-
-                // set permalink
-                if ($flags['link'] && !$has_permalink && ($i == $first_header)) {
-                    // make the first header a link to the included page/section
-                    // for example: 
-                    //   <h1 id="hid"><a href="url-to-included-page">Headline</a></h1>
-                    // ** ALTERNATIVE APPROACH in Heading PreProcessor (HPP) plugin **
-                    // disable this feature.
-                  //$this->pluginInstruction('include_header',
-                  //    [$instructions[$i][1][0], $instructions[$i][1][1], $instructions[$i][1][2], $page, $sect, $flags]
-                  //);
-                    $has_permalink = true;
-                }
-
-                // set footer level
-                if (!$footer_lvl && ($i == $first_header) && !$no_header) {
-                    if ($flags['indent'] && isset($lvl_new)) {
-                        $footer_lvl = $lvl_new;
-                    } else {
-                        $footer_lvl = $lvl_max;
-                    }
-                }
-            } else {
-                // it's a section
-                if ($flags['indent']) {
-//                  $lvl_new = (($instructions[$i][1][0] + $diff) > 5) ? 5 : ($instructions[$i][1][0] + $diff);
-//                  $instructions[$i][1][0] = $lvl_new;
-                }
-
-                // check if noheader is used and set the footer level to the first section
-                if ($no_header && !$footer_lvl) {
-                    if ($flags['indent'] && isset($lvl_new)) {
-//                      $footer_lvl = $lvl_new;
-                    } else {
-//                      $footer_lvl = $lvl_max;
-                    }
-                }
-            }
-        } // end of foreach
-
         // re-indexes the instructions, beacuse some of them may have dropped/unset
-        $instructions = array_values($instructions);
-
-        // close last open section of the included page if there is any
-        if ($contains_secedit) {                       // _get_section()で処理する
-//          $instructions[] = $this->pluginInstruction('include_closelastsecedit',[$endpos]);
-        }
-
-        // add edit button
-        if ($flags['editbtn']) {                       // _get_section()で処理する
-//          $instructions[] = $this->pluginInstruction('include_editbtn',[($sect ? $sect_title : $page)]);
-        }
-
-        // add footer
-        if ($flags['footer']) {                        // _get_section()で処理する
-//          $instructions[] = $this->pluginInstruction(
-//              'include_footer',[$page, $sect, $sect_title, $flags, $root_id, $footer_lvl]
-//          );
-        }
-
-        // wrap content at the beginning of the include that is not in a section in a section
-        if ($lvl > 0 && $section_close_at !== 0 && $flags['indent'] && !$flags['inline']) {
-            if ($section_close_at === false) {
-                array_unshift($instructions, $this->dwInstruction('section_open',[$lvl]));
-                array_push($instructions, $this->dwInstruction('section_close',[]));
-            } else {
-                $section_close_idx = array_search($section_close_at, array_keys($instructions));
-                if ($section_close_idx > 0) {
-                    $before_ins = array_slice($instructions, 0, $section_close_idx);
-                    $after_ins = array_slice($instructions, $section_close_idx);
-                    $instructions = array_merge(
-                        $before_ins,
-                        array($this->dwInstruction('section_close',[])),
-                        $after_ins
-                    );
-                    array_unshift($instructions, $this->dwInstruction('section_open',[$lvl]));
-                }
-            }
-        }
+        //$instructions = array_values($instructions);
     }
 
     /**
@@ -600,33 +429,33 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
 
         $ns  = getNS($page);
 
-        foreach ($instructions as $k => &$instruction) {
+        foreach ($instructions as $k => &$ins) {
             // adjust links with image titles
-            if (strpos($instruction[0], 'link') !== false
-                && isset($instruction[1][1]['type'])
-                && $instruction[1][1]['type'] == 'internalmedia'
+            if (strpos($ins[0], 'link') !== false
+                && isset($ins[1][1]['type'])
+                && $ins[1][1]['type'] == 'internalmedia'
             ) {
                 // resolve relative ids, but without cleaning in order to preserve the name
-                $media_id = resolve_id($ns, $instruction[1][1]['src'], false);
+                $media_id = resolve_id($ns, $ins[1][1]['src'], false);
                 // make sure that after resolving the link again it will be the same link
-                $instruction[1][1]['src'] = ':'.ltrim(':', $media_id);
+                $ins[1][1]['src'] = ':'.ltrim(':', $media_id);
             }
-            switch ($instruction[0]) {
+            switch ($ins[0]) {
                 case 'internallink':
                 case 'internalmedia':
                     // make sure parameters aren't touched
-                    [$link_id, $link_params] = explode('?', $instruction[1][0], 2);
+                    [$link_id, $link_params] = explode('?', $ins[1][0], 2);
                     // resolve the id without cleaning it
                     $link_id = resolve_id($ns, $link_id, false);
                     // this id is internal (i.e. absolute) now, add ':' to make resolve_id work again
                     $link_id = ':'.ltrim(':', $link_id);
                     // restore parameters
-                    $instruction[1][0] = ($link_params) ? $link_id.'?'.$link_params : $link_id;
+                    $ins[1][0] = ($link_params) ? $link_id.'?'.$link_params : $link_id;
 
-                    if ($instruction[0] == 'internallink' && !empty($toc)) {
+                    if ($ins[0] == 'internallink' && !empty($toc)) {
                         // change links to included pages into local links
                         // only adapt links without parameters
-                        [$link_id, $link_params] = explode('?', $instruction[1][0], 2);
+                        [$link_id, $link_params] = explode('?', $ins[1][0], 2);
                         // get a full page id
                         resolve_pageid($ns, $link_id, $exists);
                         [$link_id, $hash ] = explode('#', $link_id, 2);
@@ -634,13 +463,13 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                             if ($hash) {
                                 // hopefully the hash is also unique in the including page
                                 // (otherwise this might be the wrong link target)
-                                $instruction[0] = 'locallink';
-                                $instruction[1][0] = $hash;
+                                $ins[0] = 'locallink';
+                                $ins[1][0] = $hash;
                             } else {
                                 // link to instructions entry wrapper (html)id for the page
                                 $hash = 'plugin_include__'.str_replace(':', '__', $link_id);
-                                $instruction[0] = 'locallink';
-                                $instruction[1][0] = $hash;
+                                $ins[0] = 'locallink';
+                                $ins[1][0] = $hash;
                             }
                         }
                     }
@@ -652,14 +481,14 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                     } else {
                         $included_headers = [];
                     }
-                    if (!in_array($instruction[1][0], $included_headers)) {
-                        $instruction[0] = 'internallink';
-                        $instruction[1][0] = ':'.$page.'#'.$instruction[1][0];
+                    if (!in_array($ins[1][0], $included_headers)) {
+                        $ins[0] = 'internallink';
+                        $ins[1][0] = ':'.$page.'#'.$ins[1][0];
                     }
                     break;
             } // end of switch
         }
-        unset($instruction);
+        unset($ins);
     }
 
     /**
@@ -733,11 +562,10 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                     }
                     break;
                 case 'section_open':
+                    if ($flags['inline']) unset($instructions[$k]);
                     break;
                 case 'section_close':
-                    if ($section_found) {
-                        isset($firstsec_header) || $firstsec_closed = $k;  //未使用
-                    }
+                    if ($flags['inline']) unset($instructions[$k]);
                     break;
                 case 'plugin_headings_include':
                     // 再帰的なインクルードを検出
