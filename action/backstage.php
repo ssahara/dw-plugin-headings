@@ -49,23 +49,21 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
         $instructions =& $event->data->calls;
 
         // rewrite header instructions
-        foreach ($instructions as $k => &$instruction) {
+        foreach ($instructions as $k => &$ins) {
             // get call name
-            $call = ($instruction[0] == 'plugin')
-                ? 'plugin_'.$instruction[1][0]
-                : $instruction[0];
+            $call = ($ins[0] == 'plugin') ? 'plugin_'.$ins[1][0] : $ins[0];
 
             switch ($call) {
                 case 'section_open':
-                    $section_level = $instruction[1][0];
+                    $section_level = $ins[1][0];
                     break;
                 case 'header':
-                    [$text, $level, $pos] = $instruction[1];
-                    //$text = $instruction[1][0];
+                    [$text, $level, $pos] = $ins[1];
+                    //$text = $ins[1][0];
                     [$number, $hid, $title, $extra] = []; // set variables null
 
                     if ($instructions[$k+2][1][0] == 'headings_handler') {
-                        $data = $instructions[$k+2][1][1];
+                        $data =& $instructions[$k+2][1][1];
                         [$page, $pos, $level, $number, $hid, $title, $xhtml] = $data;
 
                         // set tentative hid, not unique in the page, which should be checked
@@ -80,22 +78,22 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
                     }
 
                     $extra = compact('number', 'hid', 'title', 'xhtml');
-                    $instruction[1] = [$text, $level, $pos, $extra];
+                    $ins[1] = [$text, $level, $pos, $extra];
                     break;
                 case 'plugin_headings_handler':
                   //unset($instructions[$k]);
                     break;
                 case 'plugin_headings_toc':
                     // 要検討：Built-in toc を初出限定にする処理を加えるか？
-                    $data = $instruction[1][1];
-                    [$pattern, $id, $tocProps] = $data;
+                    $data =& $ins[1][1];  // [$pattern, $id, $tocProps]
                     break;
                 case 'plugin_headings_include':
-                    $instruction[1][1][4] = $section_level;
+                    $data =& $ins[1][1];  // [$mode, [$page, $sect, $flags, $level, $pos, $extra]]
+                    $ins[1][1][1][3] = $section_level;
                     break;
             } // end of switch $call
         }
-        unset($instruction);
+        unset($ins);
     }
 
     /**
@@ -135,23 +133,21 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
         $instructions = p_cached_instructions(wikiFN($ID), true, $ID) ?? [];
         $metadata =& $event->data['current']['plugin'][$this->getPluginName()];
 
-        foreach ($instructions as $instruction) {
+        foreach ($instructions as $ins) {
             // get call name
-            $call = ($instruction[0] == 'plugin')
-                ? 'plugin_'.$instruction[1][0]
-                : $instruction[0];
+            $call = ($ins[0] == 'plugin') ? 'plugin_'.$ins[1][0] : $ins[0];
 
             switch ($call) {
                 case 'header':
-                    $header_instructions[] = $instruction[1];
+                    $header_instructions[] = $ins[1];
                     break;
                 case 'plugin_headings_include':
-                    if (!in_array($instruction[1][1][0], ['section','page'])) {
+                    if (!in_array($ins[1][1][0], ['section','page'])) {
                         break;
                     }
-                    $pos  = $instruction[2];
-                    // $page = $instruction[1][1][1];
-                    // $sect = $instruction[1][1][2];
+                    $pos  = $ins[2];
+                    // $page = $ins[1][1][1];
+                    // $sect = $ins[1][1][2];
                     // get headers from metadata (stored by include syntax component)
                     $data = $metadata['include'][$pos] ?? [];
                     foreach ($data as $page => $included_headers) {
@@ -162,7 +158,7 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
                     }
                     break;
             }
-        } // end of foreach $instructions
+        } // end of foreach $ins
 
         // STEP 2: Generate tableofcontents from header instructions
         $tableofcontents = [];
@@ -181,11 +177,11 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
             $hid = $hpp->sectionID($hid, $headers);
             $tableofcontents[] = [
                     'hid'    => $hid,
-                    'level'  => $level, //$instruction[1][1]
-                    'pos'    => $pos,   //$instruction[1][2]
+                    'level'  => $level, //$ins[1][1]
+                    'pos'    => $pos,   //$ins[1][2]
                     'number' => $number ?? null,  // 階層番号文字列に変更する
-                    'title'  => $title, //$instruction[1][3]['title']
-                    'xhtml'  => $xhtml, //$instruction[1][3]['xhtml']
+                    'title'  => $title, //$ins[1][3]['title']
+                    'xhtml'  => $xhtml, //$ins[1][3]['xhtml']
                     'type'   => 'ul',
             ];
 

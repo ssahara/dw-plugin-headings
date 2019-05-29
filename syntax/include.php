@@ -126,7 +126,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         $flags = $includeHelper->get_flags($flags);
 
         $level = null; // it will be set in PARSER_HANDLER_DONE event handler
-        return $data = [$mode, $page, $sect, $flags, $level, $pos, $extra];
+        return $data = [$mode, [$page, $sect, $flags, $level, $pos, $extra]];
     }
 
     /**
@@ -139,7 +139,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         global $ACT, $ID, $conf;
 
         // get data, of which $level has set in PARSER_HANDLER_DONE event handler
-        [$mode, $page, $sect, $flags, $level, $pos, $extra] = $data;
+        [$mode, [$page, $sect, $flags, $level, $pos, $extra]] = $data;
 
         if ($format == 'xhtml' && $ACT == 'preview') {
             [$match, $note] = $extra;
@@ -210,9 +210,9 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
             // store headers found in the instructions to complete tableofcontents
             // which is built later in PARSER_METADATA_RENDER event handler
             if ($format == 'metadata') {
-                foreach ($instructions as $instruction) {
-                    if ($instruction[0] == 'header') {
-                        $metadata['include'][$pos][$id][] = $instruction[1];
+                foreach ($instructions as $ins) {
+                    if ($ins[0] == 'header') {
+                        $metadata['include'][$pos][$id][] = $ins[1];
                     }
                 } // end of foreach
             }
@@ -302,13 +302,13 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
      */
     private function dwInstruction($method, array $params, $pos=null)
     {
-        $instruction = [];
-        $instruction[0] = $method;
-        $instruction[1] = (array)$params;
+        $ins = [];
+        $ins[0] = $method;
+        $ins[1] = (array)$params;
         if (isset($pos)) {
-            $instruction[2] = $pos;
+            $ins[2] = $pos;
         }
-        return $instruction;
+        return $ins;
     }
 
     /**
@@ -726,11 +726,10 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
             $ins = $instructions[$k];
             $call = ($ins[0] === 'plugin') ? 'plugin_'.$ins[1][0] : $ins[0];
             if ($call === 'plugin_headings_include') {
-                // $data = [$mode, $page, $sect, $flags, $level, $pos, $extra];
-                //       = $ins[1][1]
                 $inserts = null;
-                $this->_get_section($inserts, $ins[1][1][1], $ins[1][1][2], $ins[1][1][3], $ins[1][1][4]);
-                // replace current include instruction with 
+                $data =& $ins[1][1];  // [$mode, [$page, $sect, $flags, $level, $pos, $extra]]
+                $this->_get_section($inserts, $data[1][0], $data[1][1], $data[1][2], $data[1][3]);
+                // replace current include instruction with $insert
                 array_splice($instructions, $k, 1, $inserts);
                 unset($inserts);
                 $k += -1; // 置換したので、再チェックするためにカウンタを減らす
@@ -968,12 +967,12 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
     function _get_included_pages_from_meta_instructions($instructions)
     {
         $pages = [];
-        foreach ($instructions as $instruction) {
-            $mode      = $instruction['mode'];
-            $page      = $instruction['page'];
-            $sect      = $instruction['sect'];
-            $parent_id = $instruction['parent_id'];
-            $flags     = $instruction['flags'];
+        foreach ($instructions as $ins) {
+            $mode      = $ins['mode'];
+            $page      = $ins['page'];
+            $sect      = $ins['sect'];
+            $parent_id = $ins['parent_id'];
+            $flags     = $ins['flags'];
             $pages = array_merge(
                 $pages,
                 $this->_get_included_pages($mode, $page, $sect, $parent_id, $flags)
