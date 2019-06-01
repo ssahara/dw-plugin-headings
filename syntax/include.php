@@ -138,6 +138,20 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
     {
         global $ACT, $ID, $conf;
 
+        [$mode, $indata] = $data;
+        // call auxiliary render method where applicable
+        switch ($mode) {
+            case 'readmore':
+                return $this->readmore($format, $renderer, $indata);
+            case 'editbtn':
+                return $this->editbtn($format, $renderer, $indata);
+            case 'closelastsecedit':
+                return $this->closelastsecedit($format, $renderer, $indata);
+            case 'footer':
+                return $this->footer($format, $renderer, $indata);
+        }
+
+
         // get data, of which $level has set in PARSER_HANDLER_DONE event handler
         [$mode, [$page, $sect, $flags, $level, $pos, $extra]] = $data;
 
@@ -318,6 +332,9 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
      */
     private function pluginInstruction($method, array $params, $pos=null)
     {
+        if (!$method) {
+            $method = substr(get_class($this), 14); // 'heading_include'
+        }
         return $this->dwInstruction('plugin',[$method, $params], $pos);
     }
 
@@ -667,7 +684,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                     $lastcall = $instructions[$k1];
                     $instructions = array_merge(
                             array_slice($instructions, 0, $k1),
-                            $this->pluginInstruction('include_readmore',[$link]),
+                            $this->pluginInstruction('', ['readmore', [$link]]),
                             $lastcall,
                     );
                 }
@@ -741,21 +758,21 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         STEP4:
         // close last open section of the included page if there is any
         if ($contains_secedit) {
-            $instructions[] = $this->pluginInstruction('include_closelastsecedit',[$endpos]);
+            $instructions[] = $this->pluginInstruction('', ['closelastsecedit', [$endpos]]);
         }
 
         // add edit button
         if ($flags['editbtn']) {
-            $instructions[] = $this->pluginInstruction('include_editbtn',[($sect ? $sect_title : $page)]);
+            $btn_title = $sect ? $sect_title : $page;
+            $instructions[] = $this->pluginInstruction('', ['editbtn', [$btn_title]]);
         }
 
         // add footer
         if ($flags['footer']) {
             $footer_lvl = $section_level;
             $sect_title = $instructions[0][1][3]['title'] ?? '?';
-            $instructions[] = $this->pluginInstruction(
-                'include_footer',[$page, $sect, $sect_title, $flags, null, $footer_lvl]
-            );
+            $indata = [$page, $sect, $sect_title, $flags, null, $footer_lvl];
+            $instructions[] = $this->pluginInstruction('', ['footer', $indata]);
         }
 
         STEP5:
@@ -1085,6 +1102,180 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                 '@YEARNWEEK@' => date('YW',strtotime("+1 week")),
                 );
         return str_replace(array_keys($replace), array_values($replace), $id);
+    }
+
+
+    /* --------------------------------------------------------------------- *
+     * Combined auxiliary render methods
+     * Render various parts of the included page/section
+     * --------------------------------------------------------------------- */
+
+    /**
+     * Render a readmore link
+     *
+     * @author Michael Hamann <michael@content-space.de>
+     */
+    private function readmore($format, $renderer, $data)
+    {
+        list($page) = $data;
+        if ($format == 'xhtml') {
+            $renderer->doc .= '<p class="include_readmore">';
+            $renderer->internallink($page, $this->getLang('readmore'));
+            $renderer->doc .= '</p>'.DOKU_LF;
+        } else {
+            $renderer->p_open();
+            $renderer->internallink($page, $this->getLang('readmore'));
+            $renderer->p_close();
+        }
+        return true;
+    }
+
+    /**
+     * Render an include edit button
+     *
+     * @author Michael Klier <chi@chimeric.de>
+     */
+    private function editbtn($format, $renderer, $data)
+    {
+        list($title) = $data;
+        if ($format == 'xhtml') {
+            $target = 'plugin_include_editbtn';
+            if (defined('SEC_EDIT_PATTERN')) { // for DokuWiki Greebo and more recent versions
+                $renderer->startSectionEdit(0, ['target' => $target, 'name' => $title]);
+            } else {
+                $renderer->startSectionEdit(0, $target, $title);
+            }
+            $renderer->finishSectionEdit();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Finishes the last open section edit
+     *
+     * @author Michael Hamann <michael@content-space.de>
+     */
+    private function closelastsecedit($format, $renderer, $data)
+    {
+        list($endpos) = $data;
+        if ($format == 'xhtml') {
+            $renderer->finishSectionEdit($endpos);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Render the meta line below the included page/section
+     *
+     * @author Michael Klier <chi@chimeric.de>
+     */
+    private function footer($format, $renderer, $data)
+    {
+        list($page, $sect, $sect_title, $flags, $redirect_id, $footer_lvl) = $data;
+        if ($format == 'xhtml' && $flags['footer']) {
+            $renderer->doc .= $this->html_footer($page, $sect, $sect_title, $flags, $footer_lvl, $renderer);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Returns the meta line below the included page
+     * @param $renderer Doku_Renderer_xhtml The (xhtml) renderer
+     * @return string The HTML code of the footer
+     */
+    private function html_footer($page, $sect, $sect_title, $flags, $footer_lvl, $renderer)
+    {
+        global $conf, $ID;
+
+        if (!$flags['footer']) return '';
+
+        $meta  = p_get_metadata($page);
+        $exists = page_exists($page);
+        $xhtml = array();
+        // permalink
+        if ($flags['permalink']) {
+            $class = $exists ? 'wikilink1' : 'wikilink2';
+            $url   = $sect ? wl($page) . '#' . $sect : wl($page);
+            $name  = $sect ? $sect_title : $page;
+            $title = $sect ? $page . '#' . $sect : $page;
+            if (!$title) $title = str_replace('_', ' ', noNS($page));
+            $link = array(
+                    'url'    => $url,
+                    'title'  => $title,
+                    'name'   => $name,
+                    'target' => $conf['target']['wiki'],
+                    'class'  => $class . ' permalink',
+                    'more'   => 'rel="bookmark"',
+                    );
+            $xhtml[] = $renderer->_formatLink($link);
+        }
+        // date
+        if ($flags['date'] && $exists) {
+            $date = $meta['date']['created'];
+            if ($date) {
+                $xhtml[] = '<abbr class="published" title="'.strftime('%Y-%m-%dT%H:%M:%SZ', $date).'">'
+                       . strftime($conf['dformat'], $date)
+                       . '</abbr>';
+            }
+        }
+        
+        // modified date
+        if ($flags['mdate'] && $exists) {
+            $mdate = $meta['date']['modified'];
+            if ($mdate) {
+                $xhtml[] = '<abbr class="published" title="'.strftime('%Y-%m-%dT%H:%M:%SZ', $mdate).'">'
+                       . strftime($conf['dformat'], $mdate)
+                       . '</abbr>';
+            }
+        }
+        // author
+        if ($flags['user'] && $exists) {
+            $author   = $meta['user'];
+            if ($author) {
+                if (function_exists('userlink')) {
+                    $xhtml[] = '<span class="vcard author">'. userlink($author) .'</span>';
+                } else { // DokuWiki versions < 2014-05-05 doesn't have userlink support, fall back to not providing a link
+                    $xhtml[] = '<span class="vcard author">'. editorinfo($author) .'</span>';
+                }
+            }
+        }
+        // comments - let Discussion Plugin do the work for us
+        if (empty($sect) && $flags['comments']
+          && (!plugin_isdisabled('discussion'))
+          && ($discussion =& plugin_load('helper', 'discussion'))
+        ) {
+            $disc = $discussion->td($page);
+            if ($disc) $xhtml[] = '<span class="comment">'.$disc.'</span>';
+        }
+        // linkbacks - let Linkback Plugin do the work for us
+        if (empty($sect) && $flags['linkbacks']
+          && (!plugin_isdisabled('linkback'))
+          && ($linkback =& plugin_load('helper', 'linkback'))
+        ) {
+            $link = $linkback->td($page);
+            if ($link) $xhtml[] = '<span class="linkback">'.$link.'</span>';
+        }
+
+        $xhtml = implode(DOKU_LF . DOKU_TAB . '&middot; ', $xhtml);
+
+        // tags - let Tag Plugin do the work for us
+        if (empty($sect) && $flags['tags']
+          && (!plugin_isdisabled('tag'))
+          && ($tag =& plugin_load('helper', 'tag'))
+        ) {
+            $tags = $tag->td($page);
+            if ($tags) {
+                $xhtml .= '<div class="tags"><span>'.$tags.'</span></div>'.DOKU_LF;
+            }
+        }
+
+        if (!$xhtml) $xhtml = '&nbsp;';
+        $class = 'inclmeta';
+        $class .= ' level' . $footer_lvl;
+        return '<div class="'.$class.'">'.$xhtml.'</div>'.DOKU_LF;
     }
 
 }
