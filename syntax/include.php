@@ -2,7 +2,7 @@
 /** 
  * Heading PreProcessor plugin for DokuWiki; syntax component
  *
- * Include Plugin: displays a wiki page within another
+ * Include Plugin: displays a wiki page within another wiki page
  * Usage: 
  * {{page>page}} for "page" in same namespace 
  * {{page>:page}} for "page" in top namespace 
@@ -125,6 +125,15 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         isset($includeHelper) || $includeHelper = $this->loadHelper('include', true);
         $flags = $includeHelper->get_flags($flags);
 
+        // "linkonly" mode: page/section inclusion does not required
+        if ($flags['linkonly']) {
+            $flags = array_filter($flags, function($k) {
+                return in_array($k, ['linkonly','pageexists','parlink','depth','order','rsort']);
+            }, ARRAY_FILTER_USE_KEY);
+            error_log(' linkonly: id='.$ID.' flags='.var_export($flags,1));
+            return $data = ['linkonly', [$page, $sect, $flags, $mode]]; // indataの最初の3つの順を通常と揃える
+        }
+
         $level = null; // it will be set in PARSER_HANDLER_DONE event handler
         return $data = [$mode, [$page, $sect, $flags, $level, $pos, $extra]];
     }
@@ -149,6 +158,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                 return $this->closelastsecedit($format, $renderer, $indata);
             case 'footer':
                 return $this->footer($format, $renderer, $indata);
+            case 'linkonly':
+                return $this->linkonly($format, $renderer, $indata);
         }
 
 
@@ -174,13 +185,6 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         $pages = $this->_get_included_pages($mode, $page, $sect, $parent_id, $flags);
         unset($flags['order'], $flags['rsort']);
 
-        // "linkonly" mode: page/section inclusion does not required
-        if ($flags['linkonly']) {
-            // link only to the included pages instead of including the content
-            return $this->render_linkonly($renderer, $pages, $sect, $flags);
-        } else {
-            unset($flags['linkonly'], $flags['parlink']);
-        }
 
         if ($format == 'metadata') {
             $metadata =& $renderer->meta['plugin'][$this->getPluginName()];
@@ -246,45 +250,6 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         // in order to allow the rendering of other pages
         if (count($page_stack) == 1) array_pop($page_stack);
 
-        return true;
-    }
-
-    /**
-     * Renders links to the included pages/sections instead of their contents
-     * 
-     * called when $flags['linkonly'] is on
-     */
-    protected function render_linkonly(Doku_Renderer $renderer, $pages, $sect=null, $flags)
-    {
-        if (!$flags['linkonly']) return false;
-
-        foreach ($pages as $page) {
-            $id     = $sect ? $page['id'].'#'.$sect : $page['id'];
-            $exists = $page['exists'];
-
-            if ($flags['pageexists'] && !$page['exists']) {
-                continue;
-            } else {
-                if ($flags['title']) {
-                    $render = METADATA_RENDER_USING_SIMPLE_CACHE;
-                    $title = p_get_metadata($id,'title', $render);
-                } else {
-                    $title = '';
-                }
-                if ($flags['parlink']) {
-                    $instructions = [
-                        $this->dwInstruction('p_open',[]),
-                        $this->dwInstruction('internallink',[':'.$id, $title]),
-                        $this->dwInstruction('p_close',[]),
-                    ];
-                } else {
-                    $instructions = [
-                        $this->dwInstruction('internallink',[':'.$id, $title]),
-                    ];
-                }
-            }
-            $renderer->nest($instructions);
-        }
         return true;
     }
 
@@ -522,11 +487,23 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         static $hpp; // headings preprocessor object
 
         if (!is_array($instructions)) {
-            // change the global $ID to $page as otherwise plugins like 
-            // the discussion plugin will save data for the wrong page
-            [$ID, $backupID] = [$page, $ID];
-            $instructions = p_cached_instructions(wikiFN($page), false, $page);
-            [$ID, $backupID] = [$backupID, null];
+            if ($flags['linkonly']) {
+                $id = $sect ? $page.'#'.$sect : $page;
+                $title = p_get_metadata($id,'title', METADATA_RENDER_USING_SIMPLE_CACHE);
+                $instructions = [
+                    $this->dwInstruction('p_open',[]),
+                    $this->dwInstruction('internallink',[':'.$id, $title]),
+                    $this->dwInstruction('p_open',[]),
+                ];
+                return $instructions;
+             // goto STEP3;
+            } else {
+                // change the global $ID to $page as otherwise plugins like 
+                // the discussion plugin will save data for the wrong page
+                [$ID, $backupID] = [$page, $ID];
+                $instructions = p_cached_instructions(wikiFN($page), false, $page);
+                [$ID, $backupID] = [$backupID, null];
+            }
         }
 
         STEP1:
@@ -1276,6 +1253,54 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         $class = 'inclmeta';
         $class .= ' level' . $footer_lvl;
         return '<div class="'.$class.'">'.$xhtml.'</div>'.DOKU_LF;
+    }
+
+    /**
+     * Renders links to the included pages/sections instead of their contents
+     *  called when $flags['linkonly'] is on
+     */
+    private function linkonly($format, $renderer, $data)
+    {
+        global $ID;
+
+        [$page, $sect, $flags, $mode] = $data;
+        $parent_id = $ID;
+        $pages = $this->_get_included_pages($mode, $page, $sect, $parent_id, $flags);
+
+        error_log(' render linkonly:'.var_export($pages,1));
+
+//      list($pages, $sect, $flags) = $data;
+
+//      if (!$flags['linkonly']) return false;
+
+        foreach ($pages as $page) {
+            $id     = $sect ? $page['id'].'#'.$sect : $page['id'];
+            $exists = $page['exists'];
+
+            if ($flags['pageexists'] && !$page['exists']) {
+                continue;
+            } else {
+                if ($flags['title']) {
+                    $render = METADATA_RENDER_USING_SIMPLE_CACHE;
+                    $title = p_get_metadata($id,'title', $render);
+                } else {
+                    $title = '';
+                }
+                if ($flags['parlink']) {
+                    $instructions = [
+                        $this->dwInstruction('p_open',[]),
+                        $this->dwInstruction('internallink', [':'.$id, $title]),
+                        $this->dwInstruction('p_close',[]),
+                    ];
+                } else {
+                    $instructions = [
+                        $this->dwInstruction('internallink',[':'.$id, $title]),
+                    ];
+                }
+            }
+            $renderer->nest($instructions);
+        }
+        return true;
     }
 
 }
