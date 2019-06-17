@@ -20,9 +20,6 @@ if (!defined('DOKU_INC')) die();
 
 class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
 {
-    /** @var $helper helper_plugin_include */
-    var $helper = null;
-
     public function getType() { return 'protected'; }
     public function getPType(){ return 'block'; }
 
@@ -121,16 +118,13 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
             $extra = [$match,''];
         }
 
-        static $includeHelper;
-        isset($includeHelper) || $includeHelper = $this->loadHelper('include', true);
-        $flags = $includeHelper->get_flags($flags);
+        $flags = $this->get_flags($flags);
 
         // "linkonly" mode: page/section inclusion does not required
         if ($flags['linkonly']) {
             $flags = array_filter($flags, function($k) {
                 return in_array($k, ['linkonly','pageexists','parlink','depth','order','rsort']);
             }, ARRAY_FILTER_USE_KEY);
-            error_log(' linkonly: id='.$ID.' flags='.var_export($flags,1));
             return $data = ['linkonly', [$page, $sect, $flags, $mode]]; // indataの最初の3つの順を通常と揃える
         }
 
@@ -1267,12 +1261,6 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         $parent_id = $ID;
         $pages = $this->_get_included_pages($mode, $page, $sect, $parent_id, $flags);
 
-        error_log(' render linkonly:'.var_export($pages,1));
-
-//      list($pages, $sect, $flags) = $data;
-
-//      if (!$flags['linkonly']) return false;
-
         foreach ($pages as $page) {
             $id     = $sect ? $page['id'].'#'.$sect : $page['id'];
             $exists = $page['exists'];
@@ -1301,6 +1289,171 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
             $renderer->nest($instructions);
         }
         return true;
+    }
+
+
+    /**
+     * Override default settings
+     */
+    private function get_flags(array $params)
+    {
+        // load defaults
+        if (!plugin_isdisabled('include')) {
+            /** @var $includeHelper helper_plugin_include */
+            static $includeHelper;
+            isset($includeHelper) || $includeHelper = $this->loadHelper('include', true);
+            $flags = $includeHelper->get_flags($params);
+            return $flags;
+        }
+
+        $defaults = array(
+            'noheader'    => 0,     // Don't display the header of the inserted section
+            'firstsec'    => 0,     // limit entries on main blog page to first section
+            'readmore'    => 1,     // Show readmore link in case of firstsection only
+
+            'footer'      => 1,     // display meta line below blog entries
+            'permalink'   => 0,     // show permalink below blog entries
+            'date'        => 1,     // show date below blog entries
+            'mdate'       => 0,     // show modification date below blog entries
+            'user'        => 1,     // show username below blog entries
+            'comments'    => 1,     // show number of comments below blog entries
+            'linkbacks'   => 1,     // show number of linkbacks below blog entries
+
+            'indent'      => 1,     // indent included pages relative to the page they get included
+            'redirect'    => 1,     // redirect back to original page after an edit
+            'editbtn'     => 1,     // show the edit button
+
+            'linkonly'    => 0,     // link only to the included pages instead of including the content
+            'parlink'     => 1,     // paragraph around link
+
+            'tags'        => 1,     // show tags below blog entries
+            'link'        => 0,     // link headlines of blog entries
+            'taglogos'    => 0,     // display image for first tag
+
+            'title'       => 0,     // use first header of page in link
+            'pageexists'  => 0,     // no link if page does not exist
+            'safeindex'   => 1,     // prevent indexing of protected metadata
+
+            'order'       => 'id',  // order in which the pages are included in the case of multiple pages
+            'rsort'       => 0,     // reverse sort order
+            'depth'       => 1,     // maximum depth of namespace includes, 0 for unlimited depth
+            'inline'      => 0,
+        );
+
+        $flags = $defaults;
+
+        foreach ($params as $flag) {
+            $value = '';
+            if (strpos($flag, '=') !== false) {
+                list($flag, $value) = explode('=', $flag, 2);
+            }
+
+            switch ($flag) {
+                case 'header':
+                    $flags['noheader'] = 0;   break;
+                case 'noheader':
+                    $flags['noheader'] = 1;   break;
+                case 'firstseconly':
+                case 'firstsectiononly':
+                    $flags['firstsec'] = 1;   break;
+                case 'fullpage':
+                    $flags['firstsec'] = 0;   break;
+                case 'footer':
+                    $flags['footer'] = 1;     break;
+                case 'nofooter':
+                    $flags['footer'] = 0;     break;
+
+                case 'link':
+                    $flags['link'] = 1;       break;
+                case 'nolink':
+                    $flags['link'] = 0;       break;
+                case 'permalink':
+                    $flags['permalink'] = 1;  break;
+                case 'nopermalink':
+                    $flags['permalink'] = 0;  break;
+                case 'date':
+                    $flags['date'] = 1;       break;
+                case 'nodate':
+                    $flags['date'] = 0;       break;
+                case 'mdate':
+                    $flags['mdate'] = 1;      break;
+                case 'nomdate':
+                    $flags['mdate'] = 0;      break;
+                case 'user':
+                    $flags['user'] = 1;       break;
+                case 'nouser':
+                    $flags['user'] = 0;       break;
+                case 'comments':
+                    $flags['comments'] = 1;   break;
+                case 'nocomments':
+                    $flags['comments'] = 0;   break;
+                case 'linkbacks':
+                    $flags['linkbacks'] = 1;  break;
+                case 'nolinkbacks':
+                    $flags['linkbacks'] = 0;  break;
+                case 'tags':
+                    $flags['tags'] = 1;       break;
+                case 'notags':
+                    $flags['tags'] = 0;       break;
+                case 'editbtn':
+                case 'editbutton':
+                    $flags['editbtn'] = 1;    break;
+                case 'noeditbtn':
+                case 'noeditbutton':
+                    $flags['editbtn'] = 0;    break;
+                case 'redirect':
+                    $flags['redirect'] = 1;   break;
+                case 'noredirect':
+                    $flags['redirect'] = 0;   break;
+                case 'indent':
+                    $flags['indent'] = 1;     break;
+                case 'noindent':
+                    $flags['indent'] = 0;     break;
+                case 'linkonly':
+                    $flags['linkonly'] = 1;   break;
+                case 'nolinkonly':
+                case 'include_content':
+                    $flags['linkonly'] = 0;   break;
+
+                case 'title':
+                    $flags['title'] = 1;      break;
+                case 'notitle':
+                    $flags['title'] = 0;      break;
+                case 'pageexists':
+                    $flags['pageexists'] = 1; break;
+                case 'nopageexists':
+                    $flags['pageexists'] = 0; break;
+                case 'existlink':
+                    $flags['pageexists'] = 1; $flags['linkonly'] = 1; break;
+                case 'parlink':
+                    $flags['parlink'] = 1;    break;
+                case 'noparlink':
+                    $flags['parlink'] = 0;    break;
+                case 'order':
+                    $flags['order'] = $value; break;
+                case 'sort':
+                    $flags['rsort'] = 0;      break;
+                case 'rsort':
+                    $flags['rsort'] = 1;      break;
+                case 'depth':
+                    $flags['depth'] = max(intval($value), 0); break;
+                case 'readmore':
+                    $flags['readmore'] = 1;   break;
+                case 'noreadmore':
+                    $flags['readmore'] = 0;   break;
+                case 'inline':
+                    $flags['inline'] = 1;     break;
+                case 'beforeeach':
+                    $flags['beforeeach'] = $value; break;
+                case 'aftereach':
+                    $flags['aftereach']  = $value; break;
+
+            }
+        }
+        // the include_content URL parameter overrides flags
+        if (isset($_REQUEST['include_content']))
+            $flags['linkonly'] = 0;
+        return $flags;
     }
 
 }
