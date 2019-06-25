@@ -49,8 +49,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
 
     public function connectTo($mode)
     {
+        $this->Lexer->addSpecialPattern($this->pattern[0], $mode, $this->mode);
         if (!plugin_isdisabled('include')) {
-            $this->Lexer->addSpecialPattern($this->pattern[0], $mode, $this->mode);
             $this->Lexer->addSpecialPattern($this->pattern[1], $mode, $this->mode);
             $this->Lexer->addSpecialPattern($this->pattern[2], $mode, $this->mode);
             $this->Lexer->addSpecialPattern($this->pattern[3], $mode, $this->mode);
@@ -148,6 +148,8 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                 return $this->readmore($format, $renderer, $indata);
             case 'editbtn':
                 return $this->editbtn($format, $renderer, $indata);
+            case 'wrap':
+                return $this->wrap($format, $renderer, $indata);
             case 'closelastsecedit':
                 return $this->closelastsecedit($format, $renderer, $indata);
             case 'footer':
@@ -713,7 +715,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         while ($k <= $kmax) {
             $ins = $instructions[$k];
             $call = ($ins[0] === 'plugin') ? 'plugin_'.$ins[1][0] : $ins[0];
-            if ($call === 'plugin_headings_include') {
+            if ($call === 'plugin_headings_include' && in_array($ins[1][1],['page','section'])) {
                 $inserts = null;
                 $data =& $ins[1][1];  // [$mode, [$page, $sect, $flags, $level, $pos, $extra]]
                 $this->_get_section($inserts, $data[1][0], $data[1][1], $data[1][2], $data[1][3]);
@@ -749,12 +751,19 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         STEP5:
         // Add include entry wrapper for included instructions
         $secid = 'plugin_include__'.str_replace(':', '__', $page);
+/*
+        // Includeプラグインに依存する場合
         array_unshift($instructions, $this->pluginInstruction(
             'include_wrap',['open', $page, $flags['redirect'], $secid]
         ));
         array_push($instructions, $this->pluginInstruction(
             'include_wrap',['close']
         ));
+*/
+        $indata = ['open', $page, $flags['redirect'], $secid];
+        array_unshift($instructions, $this->pluginInstruction('', ['wrap', $indata]));
+        $indata = ['close'];
+        array_push($instructions, $this->pluginInstruction('', ['wrap', $indata]));
 
         if (isset($flags['beforeeach'])) {
             array_unshift($instructions, $this->dwInstruction('entity',[$flags['beforeeach']]));
@@ -1117,6 +1126,55 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                 $renderer->startSectionEdit(0, $target, $title);
             }
             $renderer->finishSectionEdit();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Wrap the included page in a div and writes section edits for the action component
+     * so it can detect where an included page starts/ends.
+     *
+     * @author Michael Klier <chi@chimeric.de>
+     * @author Michael Hamann <michael@content-space.de>
+     */
+    private function wrap($format, $renderer, $data)
+    {
+        if ($format == 'xhtml') {
+            list($state, $page, $redirect, $secid) = $data;
+                    error_log('   wrap '.var_export($data,1));
+            switch ($state) {
+                case 'open':
+                    $target = $redirect ? 'plugin_include_start' : 'plugin_include_start_noredirect';
+                    if (defined('SEC_EDIT_PATTERN')) { // for DokuWiki Greebo and more recent versions
+                        $renderer->startSectionEdit(0, ['target' => $target, 'name' => $page]);
+                    } else {
+                        $renderer->startSectionEdit(0, $target, $page);
+                    }
+                    $renderer->finishSectionEdit();
+
+                    // Start a new section with type != section so headers in the included page
+                    // won't print section edit buttons of the parent page
+                    $target = 'plugin_include_end';
+                    if (defined('SEC_EDIT_PATTERN')) { // for DokuWiki Greebo and more recent versions
+                        $renderer->startSectionEdit(0, ['target' => $target, 'name' => $page]);
+                    } else {
+                        $renderer->startSectionEdit(0, $target, $page);
+                    }
+
+                    $class = 'plugin_include_content plugin_include__'.$page;
+                    $id = ($secid === null) ? '' : ' id="'.$secid.'"';
+                    $renderer->doc .= '<div class="'.$class.'"'.$id.'>'.DOKU_LF;
+                    if (is_a($renderer,'renderer_plugin_dw2pdf')) {
+                        $renderer->doc .= '<a name="'.$secid.'" />';
+                    }
+                    break;
+                case 'close':
+                    $renderer->finishSectionEdit();
+                    $renderer->doc .= '</div>'.DOKU_LF;
+                    error_log('   closed');
+                    break;
+            }
             return true;
         }
         return false;
