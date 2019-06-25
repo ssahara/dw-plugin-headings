@@ -789,7 +789,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
      *
      * @author Michael Hamann <michael@content-space.de>
      */
-    protected function _get_included_pages($mode, $page, $sect, $parent_id, $flags)
+    public function _get_included_pages($mode, $page, $sect, $parent_id, $flags)
     {
         $pages = [];
         switch ($mode) {
@@ -951,31 +951,6 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
     protected function _r_strnatcasecmp($a, $b)
     {
         return strnatcasecmp($b, $a);
-    }
-
-    /**
-     * This function generates the list of all included pages from a list of metadata
-     * instructions.
-     *
-     * このメソッドは RENDER_CACHE_USE event handeler
-     *   plugin/include/action.php cache_prepare()
-     * からコールされる
-     */
-    function _get_included_pages_from_meta_instructions($instructions)
-    {
-        $pages = [];
-        foreach ($instructions as $ins) {
-            $mode      = $ins['mode'];
-            $page      = $ins['page'];
-            $sect      = $ins['sect'];
-            $parent_id = $ins['parent_id'];
-            $flags     = $ins['flags'];
-            $pages = array_merge(
-                $pages,
-                $this->_get_included_pages($mode, $page, $sect, $parent_id, $flags)
-            );
-        }
-        return $pages;
     }
 
     /**
