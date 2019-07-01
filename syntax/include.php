@@ -187,12 +187,16 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
 
             /** @var Doku_Renderer_metadata $renderer */
             if (!isset($renderer->meta['plugin_include'])) {
-                $renderer->meta['plugin_include'] = [];
+        //      $renderer->meta['plugin_include'] = [];
             }
-            $meta =& $renderer->meta['plugin_include'];
-            $meta['instructions'][] = compact('mode', 'page', 'sect', 'parent_id', $flags);
-            $meta['pages'] = array_merge( (array)$meta['pages'], $pages);
-            $meta['include_content'] = isset($_REQUEST['include_content']);
+        //  $meta =& $renderer->meta['plugin_include'];
+        //  $meta['instructions'][] = compact('mode', 'page', 'sect', 'parent_id', $flags);
+        //  $meta['pages'] = array_merge( (array)$meta['pages'], $pages);
+        //  $meta['include_content'] = isset($_REQUEST['include_content']);
+
+            $metadata['instructions'][] = compact('mode', 'page', 'sect', 'parent_id', $flags);
+            $metadata['include_pages'] = array_merge( (array)$metadata['include_pages'], $pages);
+            $metadata['include_content'] = isset($_REQUEST['include_content']);
         } else {
             // $format == 'xhtml'
             global $INFO;
@@ -1117,7 +1121,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
     {
         if ($format == 'xhtml') {
             list($state, $page, $redirect, $secid) = $data;
-                    error_log('   wrap '.var_export($data,1));
+
             switch ($state) {
                 case 'open':
                     $target = $redirect ? 'plugin_include_start' : 'plugin_include_start_noredirect';
@@ -1147,7 +1151,6 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
                 case 'close':
                     $renderer->finishSectionEdit();
                     $renderer->doc .= '</div>'.DOKU_LF;
-                    error_log('   closed');
                     break;
             }
             return true;

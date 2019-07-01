@@ -22,8 +22,8 @@ class action_plugin_headings_include extends DokuWiki_Syntax_Plugin
     /**
      * Register event handlers
      */
-    public function register(Doku_Event_Handler $controller) {
-
+    public function register(Doku_Event_Handler $controller)
+    {
         if (!plugin_isdisabled('include')) return;
 
         $controller->register_hook('ACTION_SHOW_REDIRECT', 'BEFORE', $this, 'handle_redirect');
@@ -39,7 +39,7 @@ class action_plugin_headings_include extends DokuWiki_Syntax_Plugin
         $controller->register_hook('INDEXER_VERSION_GET', 'BEFORE', $this, 'handle_indexer_version');
 
         // move plugin が有効な場合に実行される
-        $controller->register_hook('PLUGIN_MOVE_HANDLERS_REGISTER', 'BEFORE', $this, 'handle_move_register');
+     // $controller->register_hook('PLUGIN_MOVE_HANDLERS_REGISTER', 'BEFORE', $this, 'handle_move_register');
 
         $controller->register_hook('PARSER_CACHE_USE','BEFORE', $this, '_cache_prepare');
     }
@@ -50,7 +50,8 @@ class action_plugin_headings_include extends DokuWiki_Syntax_Plugin
      *
      * Modify the data for the redirect when there is a redirect_id set
      */
-    public function handle_redirect(Doku_Event $event, $param) {
+    public function handle_redirect(Doku_Event $event, $param)
+    {
         if (array_key_exists('redirect_id', $_REQUEST)) {
             // Render metadata when this is an older DokuWiki version where
             // metadata is not automatically re-rendered as the page has probably
@@ -69,7 +70,8 @@ class action_plugin_headings_include extends DokuWiki_Syntax_Plugin
      *
      * Add a hidden input to the form to preserve the redirect_id
      */
-    public function handle_form(Doku_Event $event, $param) {
+    public function handle_form(Doku_Event $event, $param)
+    {
         if (array_key_exists('redirect_id', $_REQUEST)) {
             $event->data->addHidden('redirect_id', cleanID($_REQUEST['redirect_id']));
         }
@@ -82,7 +84,8 @@ class action_plugin_headings_include extends DokuWiki_Syntax_Plugin
      * and replace normal section edit buttons when the current page is different from the
      * global $ID.
      */
-    public function handle_secedit_button2(Doku_Event $event, $params) {
+    public function handle_secedit_button(Doku_Event $event, $params)
+    {
         // stack of included pages in the form ('id' => page, 'rev' => modification time, 'writable' => bool)
         static $page_stack = array();
 
@@ -114,8 +117,9 @@ class action_plugin_headings_include extends DokuWiki_Syntax_Plugin
             case 'plugin_include_editbtn':
                 if ($page_stack[0]['writable']) {
                     $params = array('do' => 'edit', 'id' => $page_stack[0]['id']);
-                    if ($page_stack[0]['redirect'])
+                    if ($page_stack[0]['redirect']) {
                         $params['redirect_id'] = $ID;
+                    }
                     $event->result  = '<div class="secedit">' . DOKU_LF;
                     $event->result .= html_btn('incledit', $page_stack[0]['id'], '',
                                           $params, 'post',
@@ -180,7 +184,8 @@ class action_plugin_headings_include extends DokuWiki_Syntax_Plugin
      * Add a version string to the index so it is rebuilt
      * whenever the handler is updated or the safeindex setting is changed
      */
-    public function handle_indexer_version(Doku_Event $event, $param) {
+    public function handle_indexer_version(Doku_Event $event, $param)
+    {
         // check if the feature is enabled at all
         if (!$this->getConf('safeindex')) return;
 
@@ -195,7 +200,8 @@ class action_plugin_headings_include extends DokuWiki_Syntax_Plugin
      * @param Doku_Event $event  the event object
      * @param array      $params optional parameters (unused)
      */
-    public function handle_indexer(Doku_Event $event, $params) {
+    public function handle_indexer(Doku_Event $event, $params)
+    {
         global $USERINFO;
 
         // check if the feature is enabled at all
@@ -205,11 +211,11 @@ class action_plugin_headings_include extends DokuWiki_Syntax_Plugin
         if (is_null($USERINFO) && !isset($_SERVER['REMOTE_USER'])) return;
 
         // get the include metadata in order to see which pages were included
-        $inclmeta = p_get_metadata($event->data['page'], 'plugin_include', METADATA_RENDER_UNLIMITED);
+        $metadata = p_get_metadata($event->data['page'], 'plugin_headings', METADATA_RENDER_UNLIMITED);
         $all_public = true; // are all included pages public?
         // check if the current metadata indicates that non-public pages were included
-        if ($inclmeta !== null && isset($inclmeta['pages'])) {
-            foreach ($inclmeta['pages'] as $page) {
+        if ($metadata !== null && isset($metadata['include_pages'])) {
+            foreach ($metadata['include_pages'] as $page) {
                 if (auth_aclcheck($page['id'], '', array()) < AUTH_READ) { // is $page public?
                     $all_public = false;
                     break;
@@ -266,12 +272,15 @@ class action_plugin_headings_include extends DokuWiki_Syntax_Plugin
     /**
      * PLUGIN_MOVE_HANDLERS_REGISTER
      *
+     * 要修正
      */
-    public function handle_move_register(Doku_Event $event, $params) {
+    public function handle_move_register(Doku_Event $event, $params)
+    {
         $event->data['handlers']['include_include'] = array($this, 'rewrite_include');
     }
 
-    public function rewrite_include($match, $pos, $state, $plugin, helper_plugin_move_handler $handler) {
+    public function rewrite_include($match, $pos, $state, $plugin, helper_plugin_move_handler $handler)
+    {
         $syntax = substr($match, 2, -2); // strip markup
         $replacers = explode('|', $syntax);
         $syntax = array_shift($replacers);
@@ -301,52 +310,59 @@ class action_plugin_headings_include extends DokuWiki_Syntax_Plugin
 
 
     /**
+     * PARSER_CACHE_USE event handler
+     *
      * prepare the cache object for default _useCache action
      */
-    public function _cache_prepare(Doku_Event $event, $param) {
+    public function _cache_prepare(Doku_Event $event, $param)
+    {
         global $conf;
 
         /* @var cache_renderer $cache */
         $cache =& $event->data;
 
-        if(!isset($cache->page)) return;
-        if(!isset($cache->mode) || $cache->mode == 'i') return;
+        if (!isset($cache->page)) return;
+        if (!isset($cache->mode) || $cache->mode == 'i') return;
 
-        $depends = p_get_metadata($cache->page, 'plugin_include');
+        $metadata = p_get_metadata($cache->page, 'plugin '.$this->getPluginName());
+        $instructions    =& $metadata['instructions'] ?? null;
+        $include_pages   =& $metadata['include_pages'] ?? null;
+        $include_content =& $metadata['include_content'] ?? null;
 
         if($conf['allowdebug'] && $this->getConf('debugoutput')) {
             dbglog('---- PLUGIN INCLUDE CACHE DEPENDS START ----');
-            dbglog($depends);
+            dbglog($metadata);
             dbglog('---- PLUGIN INCLUDE CACHE DEPENDS END ----');
         }
 
-        if (!is_array($depends)) return; // nothing to do for us
+        if (!isset($instructions, $include_pages, $include_content)) return;
 
-        if (!is_array($depends['pages'])
-            || !is_array($depends['instructions'])
-            || $depends['pages'] != $this->_get_included_pages_from_meta_instructions($depends['instructions'])
+        if (!is_array($include_pages)
+            || !is_array($instructions)
+            || $include_pages != $this->_get_included_pages_from_meta_instructions($instructions)
             // the include_content url parameter may change the behavior for included pages
-            || $depends['include_content'] != isset($_REQUEST['include_content'])
+            || $include_content != isset($_REQUEST['include_content'])
         ) {
             $cache->depends['purge'] = true; // included pages changed or old metadata - request purge.
             if($conf['allowdebug'] && $this->getConf('debugoutput')) {
                 dbglog('---- PLUGIN INCLUDE: REQUESTING CACHE PURGE ----');
                 dbglog('---- PLUGIN INCLUDE CACHE PAGES FROM META START ----');
-                dbglog($depends['pages']);
+                dbglog($include_pages);
                 dbglog('---- PLUGIN INCLUDE CACHE PAGES FROM META END ----');
                 dbglog('---- PLUGIN INCLUDE CACHE PAGES FROM META_INSTRUCTIONS START ----');
-                dbglog($this->_get_included_pages_from_meta_instructions($depends['instructions']));
+                dbglog($this->_get_included_pages_from_meta_instructions($instructions));
                 dbglog('---- PLUGIN INCLUDE CACHE PAGES FROM META_INSTRUCTIONS END ----');
 
             }
         } else {
             // add plugin.info.txt to depends for nicer upgrades
             $cache->depends['files'][] = dirname(__FILE__) . '/plugin.info.txt';
-            foreach ($depends['pages'] as $page) {
-                if (!$page['exists']) continue;
-                $file = wikiFN($page['id']);
-                if (!in_array($file, $cache->depends['files'])) {
-                    $cache->depends['files'][] = $file;
+            foreach ($include_pages as $page) {
+                if ($page['exists']) {
+                    $file = wikiFN($page['id']);
+                    if (!in_array($file, $cache->depends['files'])) {
+                        $cache->depends['files'][] = $file;
+                    }
                 }
             }
         }
@@ -375,84 +391,5 @@ class action_plugin_headings_include extends DokuWiki_Syntax_Plugin
         }
         return $pages;
     }
-
-
-    /**
-     * Handle special section edit buttons for the include plugin to get the current page
-     * and replace normal section edit buttons when the current page is different from the
-     * global $ID.
-     */
-    function handle_secedit_button(Doku_Event $event, $params) {
-        // stack of included pages in the form ('id' => page, 'rev' => modification time, 'writable' => bool)
-        static $page_stack = array();
-        global $ID, $lang;
-
-        $data = $event->data;
-error_log('  !!'.$data['target']);
-
-        if ($data['target'] == 'plugin_include_start' || $data['target'] == 'plugin_include_start_noredirect') {
-            // handle the "section edits" added by the include plugin
-            $fn = wikiFN($data['name']);
-            $perm = auth_quickaclcheck($data['name']);
-            array_unshift($page_stack, array(
-                'id' => $data['name'],
-                'rev' => @filemtime($fn),
-                'writable' => (page_exists($data['name']) ? (is_writable($fn) && $perm >= AUTH_EDIT) : $perm >= AUTH_CREATE),
-                'redirect' => ($data['target'] == 'plugin_include_start'),
-            ));
-        } elseif ($data['target'] == 'plugin_include_end') {
-            array_shift($page_stack);
-        } elseif ($data['target'] == 'plugin_include_editbtn') {
-            if ($page_stack[0]['writable']) {
-                $params = array('do' => 'edit',
-                    'id' => $page_stack[0]['id']);
-                if ($page_stack[0]['redirect'])
-                    $params['redirect_id'] = $ID;
-                $event->result = '<div class="secedit">' . DOKU_LF .
-                    html_btn('incledit', $page_stack[0]['id'], '',
-                        $params, 'post',
-                        $data['name'],
-                        $lang['btn_secedit'].' ('.$page_stack[0]['id'].')') .
-                    '</div>' . DOKU_LF;
-            }
-        } elseif (!empty($page_stack)) {
-
-            // Special handling for the edittable plugin
-            if ($data['target'] == 'table' && !plugin_isdisabled('edittable')) {
-                /* @var action_plugin_edittable_editor $edittable */
-                $edittable =& plugin_load('action', 'edittable_editor');
-                if (is_null($edittable))
-                    $edittable =& plugin_load('action', 'edittable');
-                $data['name'] = $edittable->getLang('secedit_name');
-            }
-
-            if ($page_stack[0]['writable'] && isset($data['name']) && $data['name'] !== '') {
-                $name = $data['name'];
-                unset($data['name']);
-
-                $secid = $data['secid'];
-                unset($data['secid']);
-
-                if ($page_stack[0]['redirect'])
-                    $data['redirect_id'] = $ID;
-
-                $event->result = "<div class='secedit editbutton_" . $data['target'] .
-                    " editbutton_" . $secid . "'>" .
-                    html_btn('secedit', $page_stack[0]['id'], '',
-                        array_merge(array('do'  => 'edit',
-                        'rev' => $page_stack[0]['rev'],
-                        'summary' => '['.$name.'] '), $data),
-                        'post', $name) . '</div>';
-            } else {
-                $event->result = '';
-            }
-        } else {
-            return; // return so the event won't be stopped
-        }
-
-        $event->preventDefault();
-        $event->stopPropagation();
-    }
-
 
 }
