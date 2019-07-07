@@ -388,7 +388,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         global $INFO;
         if (isset($INFO['id']) && $INFO['id'] == $root_id) {
             // Note: $INFO is not available in render metadata stage
-            $toc = $INFO['meta']['plugin_include']['tableofcontents'][$pos] ?? [];
+            $toc = $INFO['meta']['plugin']['headings']['include'][$pos] ?? [];
         } else {
             $toc = [];
         }
@@ -719,7 +719,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         while ($k <= $kmax) {
             $ins = $instructions[$k];
             $call = ($ins[0] === 'plugin') ? 'plugin_'.$ins[1][0] : $ins[0];
-            if ($call === 'plugin_headings_include' && in_array($ins[1][1],['page','section'])) {
+            if ($call === 'plugin_headings_include' && in_array($ins[1][1][0],['page','section'])) {
                 $inserts = null;
                 $data =& $ins[1][1];  // [$mode, [$page, $sect, $flags, $level, $pos, $extra]]
                 $this->_get_section($inserts, $data[1][0], $data[1][1], $data[1][2], $data[1][3]);
@@ -1124,7 +1124,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
 
             switch ($state) {
                 case 'open':
-                    $target = $redirect ? 'plugin_include_start' : 'plugin_include_start_noredirect';
+                    $target = 'plugin_include_start'.($redirect ? '' : '_noredirect');
                     if (defined('SEC_EDIT_PATTERN')) { // for DokuWiki Greebo and more recent versions
                         $renderer->startSectionEdit(0, ['target' => $target, 'name' => $page]);
                     } else {
