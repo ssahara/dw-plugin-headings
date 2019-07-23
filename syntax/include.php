@@ -20,25 +20,22 @@ if (!defined('DOKU_INC')) die();
 
 class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
 {
+    protected $mode;
+
+    public function __construct() {
+        $this->mode = substr(get_class($this), 7);  // drop 'syntax_' from class name
+    }
+
     public function getType() { return 'protected'; }
     public function getPType(){ return 'block'; }
 
     /**
      * Connect pattern to lexer, implement Doku_Parser_Mode_Interface
      */
-    protected $mode, $pattern;
-
-    // sort number used to determine priority of this mode
-    public function getSort()
-    {
-        return 30;
-    }
+    protected $pattern;
 
     public function preConnect()
     {
-        // syntax mode, drop 'syntax_' from class name
-        $this->mode = substr(get_class($this), 7);
-
         // syntax pattern
         $this->pattern[0] = '{{INCLUDE\b.+?}}';  // {{INCLUDE [flags] >[id]#[section]}}
         $this->pattern[1] = '{{page>.+?}}';      // {{page>[id]&[flags]}}
@@ -50,12 +47,18 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
     public function connectTo($mode)
     {
         $this->Lexer->addSpecialPattern($this->pattern[0], $mode, $this->mode);
-        if (!plugin_isdisabled('include')) {
+        if (plugin_isdisabled('include')) {
             $this->Lexer->addSpecialPattern($this->pattern[1], $mode, $this->mode);
             $this->Lexer->addSpecialPattern($this->pattern[2], $mode, $this->mode);
             $this->Lexer->addSpecialPattern($this->pattern[3], $mode, $this->mode);
             $this->Lexer->addSpecialPattern($this->pattern[4], $mode, $this->mode);
         }
+    }
+
+    // sort number used to determine priority of this mode
+    public function getSort()
+    {
+        return 30;
     }
 
     /**
@@ -181,18 +184,9 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         $pages = $this->_get_included_pages($mode, $page, $sect, $parent_id, $flags);
         unset($flags['order'], $flags['rsort']);
 
-
+        // store dependency in the metadata
         if ($format == 'metadata') {
             $metadata =& $renderer->meta['plugin'][$this->getPluginName()];
-
-            /** @var Doku_Renderer_metadata $renderer */
-            if (!isset($renderer->meta['plugin_include'])) {
-        //      $renderer->meta['plugin_include'] = [];
-            }
-        //  $meta =& $renderer->meta['plugin_include'];
-        //  $meta['instructions'][] = compact('mode', 'page', 'sect', 'parent_id', $flags);
-        //  $meta['pages'] = array_merge( (array)$meta['pages'], $pages);
-        //  $meta['include_content'] = isset($_REQUEST['include_content']);
 
             $metadata['instructions'][] = compact('mode', 'page', 'sect', 'parent_id', $flags);
             $metadata['include_pages'] = array_merge( (array)$metadata['include_pages'], $pages);
@@ -200,6 +194,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         } else {
             // $format == 'xhtml'
             global $INFO;
+            $metadata =& $INFO['meta']['plugin'][$this->getPluginName()];
         }
 
         foreach ($pages as $page) {
@@ -1098,7 +1093,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
     {
         list($title) = $data;
         if ($format == 'xhtml') {
-            $target = 'plugin_include_editbtn';
+            $target = $this->mode.'_editbtn';
             if (defined('SEC_EDIT_PATTERN')) { // for DokuWiki Greebo and more recent versions
                 $renderer->startSectionEdit(0, ['target' => $target, 'name' => $title]);
             } else {
@@ -1124,7 +1119,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
 
             switch ($state) {
                 case 'open':
-                    $target = 'plugin_include_start'.($redirect ? '' : '_noredirect');
+                    $target = $this->mode.'_start'.($redirect ? '' : '_noredirect');
                     if (defined('SEC_EDIT_PATTERN')) { // for DokuWiki Greebo and more recent versions
                         $renderer->startSectionEdit(0, ['target' => $target, 'name' => $page]);
                     } else {
@@ -1134,14 +1129,14 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
 
                     // Start a new section with type != section so headers in the included page
                     // won't print section edit buttons of the parent page
-                    $target = 'plugin_include_end';
+                    $target = $this->mode.'_end';
                     if (defined('SEC_EDIT_PATTERN')) { // for DokuWiki Greebo and more recent versions
                         $renderer->startSectionEdit(0, ['target' => $target, 'name' => $page]);
                     } else {
                         $renderer->startSectionEdit(0, $target, $page);
                     }
 
-                    $class = 'plugin_include_content plugin_include__'.$page;
+                    $class = $this->mode.'_content'.' plugin_include__'.$page;
                     $id = ($secid === null) ? '' : ' id="'.$secid.'"';
                     $renderer->doc .= '<div class="'.$class.'"'.$id.'>'.DOKU_LF;
                     if (is_a($renderer,'renderer_plugin_dw2pdf')) {
@@ -1182,7 +1177,9 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
     {
         list($page, $sect, $sect_title, $flags, $redirect_id, $footer_lvl) = $data;
         if ($format == 'xhtml' && $flags['footer']) {
-            $renderer->doc .= $this->html_footer($page, $sect, $sect_title, $flags, $footer_lvl, $renderer);
+            $renderer->doc .= '<div class="'.$this->mode.'_footer level'.$footer_lvl.'">';
+            $renderer->doc .= $this->html_footer($page, $sect, $sect_title, $flags, $renderer);
+            $renderer->doc .= '</div>';
             return true;
         }
         return false;
@@ -1193,7 +1190,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
      * @param $renderer Doku_Renderer_xhtml The (xhtml) renderer
      * @return string The HTML code of the footer
      */
-    private function html_footer($page, $sect, $sect_title, $flags, $footer_lvl, $renderer)
+    private function html_footer($page, $sect, $sect_title, $flags, $renderer)
     {
         global $conf, $ID;
 
@@ -1280,9 +1277,7 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         }
 
         if (!$xhtml) $xhtml = '&nbsp;';
-        $class = 'inclmeta';
-        $class .= ' level' . $footer_lvl;
-        return '<div class="'.$class.'">'.$xhtml.'</div>'.DOKU_LF;
+        return $xhtml;
     }
 
     /**

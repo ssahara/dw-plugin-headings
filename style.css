@@ -23,13 +23,13 @@ code.preview_note { /* for preview note displayed in toc box */
 /**
  * CSS inported from the include plugin
  */
-.dokuwiki div.plugin_include_content div.secedit {
+.dokuwiki div.plugin_headings_include_content div.secedit {
   float: right;
   margin-left: 1em;
   margin-top: 0;
 }
 
-.dokuwiki div.inclmeta {
+.dokuwiki div.plugin_headings_include_footer {
   border-top: 1px dotted __border__;
   padding-top: 0.2em;
   color: __text_neu__;
@@ -39,34 +39,34 @@ code.preview_note { /* for preview note displayed in toc box */
   margin-bottom: 2em;
 }
 
-.dokuwiki div.inclmeta a.permalink {
+.dokuwiki div.plugin_headings_include_footer a.permalink {
   background: transparent url(../include/images/link.gif) 0px 1px no-repeat;
   padding: 1px 0px 1px 16px;
 }
 
-.dokuwiki div.inclmeta abbr.published {
+.dokuwiki div.plugin_headings_include_footer abbr.published {
   background: transparent url(../include/images/date.gif) 0px 1px no-repeat;
   padding: 1px 0px 1px 16px;
   border-bottom: 0;
 }
 
-.dokuwiki div.inclmeta span.author {
+.dokuwiki div.plugin_headings_include_footer span.author {
   background: transparent url(../include/images/user.gif) 0px 1px no-repeat;
   padding: 1px 0px 1px 16px;
 }
 
 /* Disable the default interwiki icon for the user link (if there is any) */
-.dokuwiki div.inclmeta span.author a.interwiki {
+.dokuwiki div.plugin_headings_include_footer span.author a.interwiki {
     background: none;
     padding: 0;
 }
 
-.dokuwiki div.inclmeta span.comment {
+.dokuwiki div.plugin_headings_include_footer span.comment {
   background: transparent url(../include/images/comment.gif) 0px 1px no-repeat;
   padding: 1px 0px 1px 16px;
 }
 
-.dokuwiki div.inclmeta div.tags {
+.dokuwiki div.plugin_headings_include_footer div.tags {
   border-top: 0;
   font-size: 100%;
   float: right;

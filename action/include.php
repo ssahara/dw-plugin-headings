@@ -19,13 +19,17 @@ if (!defined('DOKU_INC')) die();
  */
 class action_plugin_headings_include extends DokuWiki_Syntax_Plugin
 {
+    protected $mode;
+
+    public function __construct() {
+        $this->mode = substr(get_class($this), 7);  // drop 'action_' from class name
+    }
+
     /**
      * Register event handlers
      */
     public function register(Doku_Event_Handler $controller)
     {
-        if (!plugin_isdisabled('include')) return;
-
         $controller->register_hook('ACTION_SHOW_REDIRECT', 'BEFORE', $this, 'handle_redirect');
         // 
         $controller->register_hook('HTML_EDITFORM_OUTPUT', 'BEFORE',     $this, 'handle_form');
@@ -50,8 +54,14 @@ class action_plugin_headings_include extends DokuWiki_Syntax_Plugin
      *
      * Modify the data for the redirect when there is a redirect_id set
      */
-    public function handle_redirect(Doku_Event $event, $param)
+    public function handle_redirect(Doku_Event $event, $params)
     {
+        $redirect = $this->mode.'_redirect_id';
+        if (array_key_exists($redirect, $_REQUEST)) {
+            $event->data['id'] = cleanID($_REQUEST[$redirect]);
+        }
+
+
         if (array_key_exists('redirect_id', $_REQUEST)) {
             // Render metadata when this is an older DokuWiki version where
             // metadata is not automatically re-rendered as the page has probably
@@ -61,7 +71,6 @@ class action_plugin_headings_include extends DokuWiki_Syntax_Plugin
                 p_set_metadata($event->data['id'], array(), true);
             }
             $event->data['id']    = cleanID($_REQUEST['redirect_id']);
-            $event->data['title'] = '';
         }
     }
 
@@ -70,8 +79,14 @@ class action_plugin_headings_include extends DokuWiki_Syntax_Plugin
      *
      * Add a hidden input to the form to preserve the redirect_id
      */
-    public function handle_form(Doku_Event $event, $param)
+    public function handle_form(Doku_Event $event, $params)
     {
+        $redirect = $this->mode.'_redirect_id';
+        if (array_key_exists($redirect, $_REQUEST)) {
+            $event->data->addHidden($redirect, cleanID($_REQUEST[$redirect]));
+        }
+
+
         if (array_key_exists('redirect_id', $_REQUEST)) {
             $event->data->addHidden('redirect_id', cleanID($_REQUEST['redirect_id']));
         }
@@ -93,12 +108,20 @@ class action_plugin_headings_include extends DokuWiki_Syntax_Plugin
 
         $data = $event->data;
 
-        switch ($data['target']) {
-            case 'plugin_include_start':
+        // detect "section edits" added by this plugin
+        $prefix = $this->mode.'_';
+
+        if (strpos($data['target'], $prefix) === 0) {
+            $target = str_replace($prefix, '', $data['target']);
+        } else {
+            $target = $data['target'];
+        }
+
+        switch ($target) {
+            case 'start':
                 $redirect = true;
-            case 'plugin_include_start_noredirect';
+            case 'start_noredirect';
                 $redirect = $redirect ?? false;
-                // handle the "section edits" added by the include plugin
                 $fn = wikiFN($data['name']);
                 $perm = auth_quickaclcheck($data['name']);
                 $isWritable = page_exists($data['name'])
@@ -111,22 +134,27 @@ class action_plugin_headings_include extends DokuWiki_Syntax_Plugin
                     'redirect' => $redirect,
                 ));
                 break;
-            case 'plugin_include_end':
+            case 'end':
                 array_shift($page_stack);
                 break;
-            case 'plugin_include_editbtn':
+            case 'editbtn':
                 if ($page_stack[0]['writable']) {
-                    $params = array('do' => 'edit', 'id' => $page_stack[0]['id']);
+                    // data keys: target, name(=null), secid, range(='1-'), hid(='')
+                    unset($data['name'], $data['secid'], $data['range'], $data['hid']);
+
                     if ($page_stack[0]['redirect']) {
-                        $params['redirect_id'] = $ID;
+                        $data[$prefix.'redirect_id'] = $ID;
                     }
-                    $event->result  = '<div class="secedit">' . DOKU_LF;
-                    $event->result .= html_btn('incledit', $page_stack[0]['id'], '',
-                                          $params, 'post',
-                                          $data['name'],
-                                          $lang['btn_secedit'].' ('.$page_stack[0]['id'].')'
+
+                    $event->result  = DOKU_LF.'<div class="secedit editbutton_'.$data['target'].'">';
+                    unset($data['target']); // do not use Custom Section Editor
+                    $event->result .= html_btn($this->mode, $page_stack[0]['id'], '',
+                                              array_merge(array('do'  => 'edit',
+                                                  'id' => $page_stack[0]['id']), $data
+                                              ), 'post', $name,
+                                              $lang['btn_secedit'].' ('.$page_stack[0]['id'].')'
                                       );
-                    $event->result .= '</div>' . DOKU_LF;
+                    $event->result .= '</div>'. DOKU_LF;
                 }
                 break;
             case (count($page_stack) > 0):
@@ -140,9 +168,11 @@ class action_plugin_headings_include extends DokuWiki_Syntax_Plugin
                     [$name , $secid] = [$data['name'], $data['secid']];
                     unset($data['name'], $data['secid']);
 
-                    if ($page_stack[0]['redirect']) $data['redirect_id'] = $ID;
+                    if ($page_stack[0]['redirect']) {
+                        $data[$prefix.'redirect_id'] = $ID;
+                    }
 
-                    $event->result  = '<div class="secedit editbutton_'.$data['target'].' editbutton_'.$secid. '">';
+                    $event->result  = '<div class="secedit editbutton_'.$data['target'].' editbutton_'.$secid.'">';
                     $event->result .= html_btn('secedit', $page_stack[0]['id'], '',
                                               array_merge(array('do'  => 'edit',
                                                   'rev' => $page_stack[0]['rev'],
@@ -189,7 +219,8 @@ class action_plugin_headings_include extends DokuWiki_Syntax_Plugin
         // check if the feature is enabled at all
         if (!$this->getConf('safeindex')) return;
 
-        $event->data['plugin_include'] = '0.1.safeindex='.$this->getConf('safeindex');
+        // the key name should be the plugin name
+        $event->data[$this->mode] = '0.1.safeindex='.$this->getConf('safeindex');
     }
 
     /**

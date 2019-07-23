@@ -1,5 +1,5 @@
 /**
- * Javascript functionality for the include plugin
+ * Javascript functionality for the plugin headings_include syntax component
  */
 
 /**
@@ -10,9 +10,9 @@
  * @author Michael Hamann <michael@content-space.de>
  */
 jQuery(function() {
-    jQuery('.btn_incledit')
+    jQuery('.btn_plugin_headings_include')
         .mouseover(function () {
-            jQuery(this).closest('.plugin_include_content').addClass('section_highlight');
+            jQuery(this).closest('.plugin_headings_include_content').addClass('section_highlight');
         })
         .mouseout(function () {
             jQuery('.section_highlight').removeClass('section_highlight');
