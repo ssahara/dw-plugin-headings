@@ -383,88 +383,88 @@ class syntax_plugin_headings_include extends DokuWiki_Syntax_Plugin
         global $INFO;
         if (isset($INFO['id']) && $INFO['id'] == $root_id) {
             // Note: $INFO is not available in render metadata stage
-            $toc = $INFO['meta']['plugin']['headings']['include'][$pos] ?? [];
+            $included_headers = $INFO['meta']['plugin']['headings']['include'][$pos] ?? [];
         } else {
-            $toc = [];
+            $included_headers = [];
         }
 
-        /* 何を処理するか？
-        1) 他ページの一部がインクルードされたことにより、
-           元ページでは到達可能であった locallink [[#hid]] のリンク先が
-           インクルードされていないケース
-           → internallink に修正する
-        2) 元ページで インクルード先ページへの internallink であった場合
-           インクルード先では ページ内でのリンクで済むケース
-           → locallink に修正する
-        3) 複数ページ/セクションがインクルードされていることがある
-           同一の include でインクルードされた部分への internallinkの場合
-           インクルード先では ページ内でのリンクで済むケース
-           → locallink に修正する
-           ページへのリンクの場合、リンク先はプラグイン側で用意したもの
-           local link hid= 'plugin_include__'.str_replace(':', '__', $id)
-        */
-
-        $ns  = getNS($page);
-
+        $ns = getNS($page); // false if page has no namespace (root)
         foreach ($instructions as $k => &$ins) {
-            // adjust links with image titles
-            if (strpos($ins[0], 'link') !== false
-                && isset($ins[1][1]['type'])
-                && $ins[1][1]['type'] == 'internalmedia'
-            ) {
-                // resolve relative ids, but without cleaning in order to preserve the name
-                $media_id = resolve_id($ns, $ins[1][1]['src'], false);
-                // make sure that after resolving the link again it will be the same link
-                $ins[1][1]['src'] = ':'.ltrim(':', $media_id);
-            }
-            switch ($ins[0]) {
-                case 'internallink':
-                case 'internalmedia':
-                    // make sure parameters aren't touched
-                    [$link_id, $link_params] = explode('?', $ins[1][0], 2);
-                    // resolve the id without cleaning it
-                    $link_id = resolve_id($ns, $link_id, false);
-                    // this id is internal (i.e. absolute) now, add ':' to make resolve_id work again
-                    $link_id = ':'.ltrim(':', $link_id);
-                    // restore parameters
-                    $ins[1][0] = ($link_params) ? $link_id.'?'.$link_params : $link_id;
-
-                    if ($ins[0] == 'internallink' && !empty($toc)) {
-                        // change links to included pages into local links
-                        // only adapt links without parameters
-                        [$link_id, $link_params] = explode('?', $ins[1][0], 2);
-                        // get a full page id
-                        resolve_pageid($ns, $link_id, $exists);
-                        [$link_id, $hash ] = explode('#', $link_id, 2);
-                        if (isset($toc[$link_id])) {
-                            if ($hash) {
-                                // hopefully the hash is also unique in the including page
-                                // (otherwise this might be the wrong link target)
-                                $ins[0] = 'locallink';
-                                $ins[1][0] = $hash;
-                            } else {
-                                // link to instructions entry wrapper (html)id for the page
-                                $hash = 'plugin_include__'.str_replace(':', '__', $link_id);
-                                $ins[0] = 'locallink';
-                                $ins[1][0] = $hash;
-                            }
+            // get call name
+            $call = ($ins[0] === 'plugin') ? 'plugin_'.$ins[1][0] : $ins[0];
+            switch ($call) {
+                case 'locallink':
+                    // リンク先がインクルードしようとする範囲にある場合はローカルリンクのままでok
+                    // 範囲外にある場合は、内部リンクに修正する
+                    $headers = $included_headers[$page] ?? [];
+                    $hid_found = false;
+                    foreach ($headers as $item) {
+                        if ($item[3]['hid'] == $ins[1][0]) {
+                            $hid_found = true;
+                            break;
                         }
                     }
-                    break;
-                case 'locallink':
-                    // convert local links to internal links if destination not found in toc
-                    if (isset($toc[$page])) {
-                        $included_headers = array_column($toc[$page],'hid');
-                    } else {
-                        $included_headers = [];
-                    }
-                    if (!in_array($ins[1][0], $included_headers)) {
+                    if (!$hid_found) {
+                        // internal link に変更する
                         $ins[0] = 'internallink';
-                        $ins[1][0] = ':'.$page.'#'.$ins[1][0];
+                        $ins[1][0] = $page.'#'.$ins[1][0];
                     }
+                    $chcek_imagetitle = true;
                     break;
-            } // end of switch
-        }
+                case 'internallink':
+                    // $ins[1][0] : "|" の前
+                    // $ins[1][1] : "|" の後 または イメージタイトル
+
+                    $a = array();
+                    // keep url parameters (eg. ?do=edit) and hash (eg. #section)
+                    list ($a['id'], $a['param']) = explode('?', $ins[1][0], 2);
+                    list ($a['id'], $a['hash']) = explode('#', $a['id'], 2);
+                    $link_id = resolve_id($ns, $a['id'], false);
+
+                    if ($link_id === $root_id) {
+                        // リンク先が インクルード元（root_id）の場合、ローカルリンクに修正する
+                        $ins[0] = 'locallink';
+                        $ins[1][0] = isset($a['param']) ? $a['hash'].'?'.$a['param'] : $a['hash'];
+                    } elseif ($ns === getNS($root_id)) {
+                        // 相対関係は変わらないので、特段の処理は不要のはず…
+                    } elseif (substr($a['id'][0], 0, 1) == ':') {
+                        // リンク先が absolute id で記述されている場合 そのまま
+                    } elseif ($link_id !== $a['id']) {
+                        // リンク先が 相対ページid で記述されている場合 リンク先を絶対id に修正する
+                        // リンク先がルート名前空間のページのときは ':' を先頭に付加して absolute 化する
+                     // $ins[0] = 'internallink';
+                        $a['id']    = ($ns ? '' : ':') . $link_id;
+                        $a['hash']  = isset($a['hash']) ? '#'.$a['hash'] : '';
+                        $a['param'] = isset($a['param']) ? '?'.$a['param'] : '';
+                        $ins[1][0] = $a['id'].$a['hash'].$a['param'];
+                    }
+                    $chcek_imagetitle = true;
+                    break;
+                case 'internalmedia':
+                    // $ins[1] : ('src', 'title', 'align', 'width', 'height', 'cache', 'linking')
+                    $link_id = resolve_id($ns, $ins[1][0], false);
+
+                    if (substr($ins[1][0], 0, 1) == ':') {
+                        // リンク先が absolute id で記述されている場合 そのまま
+                    } elseif ($link_id !== $ins[1][0]) {
+                        $ins[1][0] = ($ns ? '' : ':') . $link_id;
+                    }
+                    $chcek_imagetitle = true;
+                    break;
+            }
+
+            // check imagetitle
+            if (isset($chcek_imagetitle)) {
+                if ('internalmedia' == ($ins[1][1]['type'] ?? '')) {
+                    error_log(' adaptlink: imagetitle ='.$ins[1][1]['src']);
+                    // resolve relative media id, but without cleaning in order to preserve the name
+                    $media_id = resolve_id($ns, $ins[1][1]['src'], false);
+                    // make sure that after resolving the link again it will be the same link
+                    $ins[1][1]['src'] = ':'.ltrim(':', $media_id);
+                }
+                unset($chcek_imagetitle);
+            }
+        } // end of foreach
         unset($ins);
     }
 
