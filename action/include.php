@@ -17,7 +17,7 @@ if (!defined('DOKU_INC')) die();
  * All DokuWiki plugins to extend the parser/rendering mechanism
  * need to inherit from this class
  */
-class action_plugin_headings_include extends DokuWiki_Syntax_Plugin
+class action_plugin_headings_include extends DokuWiki_Action_Plugin
 {
     protected $mode;
 

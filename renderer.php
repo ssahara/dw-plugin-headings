@@ -62,7 +62,7 @@ class renderer_plugin_headings extends Doku_Renderer_xhtml
     public function cdata($text)
     {
         static $renderer;
-        isset($renderer) || $renderer = $this->loadHelper('linebreak2') ?? false;
+        isset($renderer) || $renderer = $this->loadHelper('linebreak2', false) ?? false;
         if ($renderer) {
             $this->doc .= $renderer->cdata($text);
         } else {
