@@ -80,7 +80,7 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin
         switch ($pattern) {
             case 0: // macro appricable both TOC and INLINETOC
                 if ($name == 'NOTOC') {
-                    $handler->_addCall('notoc', array(), $pos);
+                    $handler->notoc(null, $state, $pos);
                     $tocProps['display'] = 'notoc';
                     $pattern = 1;
                 } elseif ($name == 'CLOSETOC') {
@@ -101,7 +101,7 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin
                 // usage : {{!TOC 2-4 toc_hierarchical >id#section | title}}
                 if ($name == 'SIDETOC') {
                     // disable using cache
-                    $handler->_addCall('nocache', array(), $pos);
+                    $handler->nocache(null, $state, $pos);
                 }
                 if (isset($tocProps['page']) && ($tocProps['page'][0] == '#')) {
                     $tocProps['page'] = $ID.$tocProps['page'];
