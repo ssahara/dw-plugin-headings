@@ -16,8 +16,15 @@ if (!defined('DOKU_INC')) die();
 
 class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin
 {
-    public function getType() { return 'substition'; }
-    public function getPType(){ return 'block'; }
+    public function getType()
+    {   // Syntax Type
+        return 'substition';
+    }
+
+    public function getPType()
+    {   // Paragraph Type
+        return 'block';
+    }
 
     protected $tocStyle = [           // toc visual design options
         'TOC'       => 'toc_dokuwiki',
@@ -30,9 +37,8 @@ class syntax_plugin_headings_toc extends DokuWiki_Syntax_Plugin
      */
     protected $mode, $pattern;
 
-    // sort number used to determine priority of this mode
     public function getSort()
-    {
+    {   // sort number used to determine priority of this mode
         return 29; // less than Doku_Parser_Mode_notoc = 30
     }
 
