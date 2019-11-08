@@ -18,6 +18,10 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
     public function register(Doku_Event_Handler $controller)
     {
         $controller->register_hook(
+            'DOKUWIKI_STARTED', 'AFTER', $this, 'prepare_locale_xhtml', []
+        );
+
+        $controller->register_hook(
             'PARSER_HANDLER_DONE', 'BEFORE', $this, 'rewrite_header_instructions', []
         );
         $controller->register_hook(
@@ -34,11 +38,42 @@ class action_plugin_headings_backstage extends DokuWiki_Action_Plugin
 
 
     /**
+     * DOKUWIKI_STARTED event handler
+     * 
+     * Prepare cached locale_xhtml of edit and preview with blank $ID
+     * so that they are not parsed and/or renderd during preview of wiki pages
+     *
+     * 先行的に preview, edit の xhtml キャッシュを生成しておく。これにより
+     * 通常ページのプレビュー時に、同じ $ID で異なる wikiテキスト、例えば 
+     * inc/lang/<iso>/preview.txt と data/page/start.txt を syntax コンポーネントの
+     * handle ステージで処理する状況を回避する。
+     * この handler の処理内容は、inc/parserutil.php で定義されている 
+     * function p_locale_xhtml() を修正したものである。
+     * 
+     * なお、この handler を INIT_LANG_LOAD イベントで呼んでみたところ、
+     * preview.txt の xhtmlキャッシュが2カ所（内容は同じ）に作成されてしまった。
+     * p_locale_xhtml() と同じファイル名で xhtml キャッシュを生成するには
+     * DOKUWIKI_STARTED イベントで以下の handler をコールする必要がある。
+     */
+    public function prepare_locale_xhtml(Doku_Event $event, array $param)
+    {
+        global $ID;
+        if (empty($param)) $param = ['edit', 'preview'];
+
+        list($ID, $keep) = array('', $ID);
+        foreach ($param as $id) {
+            $html = p_locale_xhtml($id);
+        }
+        $ID = $keep;
+    }
+
+
+    /**
      * PARSER_HANDLER_DONE event handler
      * 
      * Propagate extra information to xhtml renderer
      */
-    public function rewrite_header_instructions(Doku_Event $event)
+    public function rewrite_header_instructions(Doku_Event $event, array $param)
     {
         global $ID;
         $section_level = 0;
